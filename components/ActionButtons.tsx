@@ -67,14 +67,12 @@ export default function ActionButtons({
             PLAY
           </Text>
         </TouchableOpacity>
-      </View>
 
-      <View style={styles.secondaryActions}>
         {onDeclareLastCard && (
           <TouchableOpacity
             style={[
-              styles.secondaryButton,
-              !canDeclareLastCard && styles.secondaryButtonDisabled,
+              styles.lastCardButton,
+              !canDeclareLastCard && styles.lastCardButtonDisabled,
             ]}
             onPress={onDeclareLastCard}
             disabled={!canDeclareLastCard}
@@ -83,10 +81,10 @@ export default function ActionButtons({
             accessibilityRole="button"
           >
             <Text style={[
-              styles.secondaryButtonText,
-              !canDeclareLastCard && styles.secondaryButtonTextDisabled,
+              styles.lastCardButtonText,
+              !canDeclareLastCard && styles.lastCardButtonTextDisabled,
             ]}>
-              LAST CARD!
+              LAST!
             </Text>
           </TouchableOpacity>
         )}
@@ -97,20 +95,21 @@ export default function ActionButtons({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 15,
+    padding: 10,
     paddingBottom: 5,
     alignItems: 'center',
     flexShrink: 0,
   },
   mainActions: {
     flexDirection: 'row',
-    gap: 15,
+    gap: 10,
+    alignItems: 'center',
   },
   button: {
-    paddingHorizontal: 30,
-    paddingVertical: 15,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderRadius: 25,
-    minWidth: 120,
+    minWidth: 90,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -133,7 +132,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     letterSpacing: 1,
     color: '#ffd700',
@@ -144,28 +143,24 @@ const styles = StyleSheet.create({
   buttonTextDisabled: {
     color: '#888',
   },
-  secondaryActions: {
-    marginTop: 15,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  secondaryButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+  lastCardButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 25,
     borderWidth: 2,
     borderColor: '#e63946',
     backgroundColor: 'transparent',
   },
-  secondaryButtonDisabled: {
+  lastCardButtonDisabled: {
     borderColor: '#666',
   },
-  secondaryButtonText: {
+  lastCardButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: 'bold',
+    letterSpacing: 1,
     color: '#e63946',
   },
-  secondaryButtonTextDisabled: {
+  lastCardButtonTextDisabled: {
     color: '#666',
   },
 });

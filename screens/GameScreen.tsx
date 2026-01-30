@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   },
   gameArea: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: 'space-evenly',
   },
   buttonWrapper: {
     flexShrink: 0,

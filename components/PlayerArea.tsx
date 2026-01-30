@@ -68,6 +68,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
     marginVertical: 5,
+    maxHeight: '28%',
   },
   opponentContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
