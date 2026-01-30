@@ -4,17 +4,60 @@ import {
   Text,
   View,
   TouchableOpacity,
-  ImageBackground,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { RulesNavigator } from './rules';
+import SinglePlayerSetup from './SinglePlayerSetup';
+import GameScreen from './GameScreen';
+import { ErrorBoundary } from '../components';
+import type { Difficulty } from '../game/ai';
+
+type ScreenState = 'home' | 'rules' | 'setup' | 'game';
 
 export default function HomeScreen() {
-  const [showRules, setShowRules] = useState(false);
+  const [currentScreen, setCurrentScreen] = useState<ScreenState>('home');
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
 
-  if (showRules) {
-    return <RulesNavigator onBack={() => setShowRules(false)} />;
+  const handleStartGame = (selectedDifficulty: Difficulty) => {
+    setDifficulty(selectedDifficulty);
+    setCurrentScreen('game');
+  };
+
+  const handleBackToHome = () => {
+    setCurrentScreen('home');
+  };
+
+  const handlePlayAgain = () => {
+    // Re-mount GameScreen by going to setup and immediately back to game
+    setCurrentScreen('setup');
+    setTimeout(() => setCurrentScreen('game'), 0);
+  };
+
+  if (currentScreen === 'rules') {
+    return <RulesNavigator onBack={handleBackToHome} />;
   }
+
+  if (currentScreen === 'setup') {
+    return (
+      <SinglePlayerSetup
+        onBack={handleBackToHome}
+        onStartGame={handleStartGame}
+      />
+    );
+  }
+
+  if (currentScreen === 'game') {
+    return (
+      <ErrorBoundary onReset={handleBackToHome}>
+        <GameScreen
+          difficulty={difficulty}
+          onBack={handleBackToHome}
+          onPlayAgain={handlePlayAgain}
+        />
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -44,7 +87,13 @@ export default function HomeScreen() {
       <Text style={styles.tagline}>Test Your Luck. Beat the Dealer.</Text>
 
       {/* Play Button */}
-      <TouchableOpacity style={styles.playButton} activeOpacity={0.8}>
+      <TouchableOpacity 
+        style={styles.playButton} 
+        activeOpacity={0.8}
+        onPress={() => setCurrentScreen('setup')}
+        accessibilityLabel="Play now"
+        accessibilityRole="button"
+      >
         <Text style={styles.playButtonText}>PLAY NOW</Text>
       </TouchableOpacity>
 
@@ -53,7 +102,9 @@ export default function HomeScreen() {
         <TouchableOpacity 
           style={styles.secondaryButton} 
           activeOpacity={0.7}
-          onPress={() => setShowRules(true)}
+          onPress={() => setCurrentScreen('rules')}
+          accessibilityLabel="How to play"
+          accessibilityRole="button"
         >
           <Text style={styles.secondaryButtonText}>How to Play</Text>
         </TouchableOpacity>
