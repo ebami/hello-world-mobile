@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { Card as CardType, GameState, Suit } from '../game/types';
 import {
@@ -252,7 +253,7 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain }: GameScre
   }, [onBack]);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar style="light" />
 
       {/* Header */}
@@ -275,43 +276,48 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain }: GameScre
         )}
       </View>
 
-      {/* Opponent Area */}
-      <PlayerArea
-        name="🤖 Bot"
-        cards={opponentHand}
-        isCurrentTurn={state.currentPlayer === 1}
-        faceDown
-        score={opponentHand.length}
-        isOpponent
-      />
+      {/* Game Area - flexible middle section */}
+      <View style={styles.gameArea}>
+        {/* Opponent Area */}
+        <PlayerArea
+          name="🤖 Bot"
+          cards={opponentHand}
+          isCurrentTurn={state.currentPlayer === 1}
+          faceDown
+          score={opponentHand.length}
+          isOpponent
+        />
 
-      {/* Discard Pile & Deck */}
-      <DiscardPile
-        topCard={topCard}
-        deckCount={state.deck.length}
-        drawPressure={state.drawPressure}
-      />
+        {/* Discard Pile & Deck */}
+        <DiscardPile
+          topCard={topCard}
+          deckCount={state.deck.length}
+          drawPressure={state.drawPressure}
+        />
 
-      {/* Player Area */}
-      <PlayerArea
-        name="👤 You"
-        cards={playerHand}
-        selectedCards={selectedCards}
-        onCardPress={handleCardPress}
-        isCurrentTurn={isPlayerTurn}
-        score={playerHand.length}
-      />
+        {/* Player Area */}
+        <PlayerArea
+          name="👤 You"
+          cards={playerHand}
+          selectedCards={selectedCards}
+          onCardPress={handleCardPress}
+          isCurrentTurn={isPlayerTurn}
+          score={playerHand.length}
+        />
+      </View>
 
-      {/* Action Buttons */}
-      <ActionButtons
-        onDraw={handleDraw}
-        onPlay={handlePlay}
-        onDeclareLastCard={handleDeclareLastCard}
-        canDraw={state.deck.length > 0}
-        canPlay={selectedCards.length > 0}
-        canDeclareLastCard={canDeclareLastCard}
-        isPlayerTurn={isPlayerTurn && !isProcessing}
-      />
+      {/* Action Buttons - fixed at bottom */}
+      <View style={styles.buttonWrapper}>
+        <ActionButtons
+          onDraw={handleDraw}
+          onPlay={handlePlay}
+          onDeclareLastCard={handleDeclareLastCard}
+          canDraw={state.deck.length > 0}
+          canPlay={selectedCards.length > 0}
+          canDeclareLastCard={canDeclareLastCard}
+          isPlayerTurn={isPlayerTurn && !isProcessing}
+        />
+      </View>
 
       {/* Last Card Indicator */}
       {state.lastCardCalled[0] && (
@@ -329,7 +335,7 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain }: GameScre
           setPendingPlay(null);
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -342,9 +348,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 10,
+    paddingVertical: 10,
+  },
+  gameArea: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  buttonWrapper: {
+    flexShrink: 0,
   },
   quitButton: {
     width: 40,

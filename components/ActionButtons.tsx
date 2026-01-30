@@ -98,7 +98,9 @@ export default function ActionButtons({
 const styles = StyleSheet.create({
   container: {
     padding: 15,
+    paddingBottom: 5,
     alignItems: 'center',
+    flexShrink: 0,
   },
   mainActions: {
     flexDirection: 'row',
