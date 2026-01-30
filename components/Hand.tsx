@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, ScrollView, Text } from 'react-native';
+import { StyleSheet, View, ScrollView } from 'react-native';
 import type { Card as CardType } from '../game/types';
 import Card from './Card';
 
@@ -25,9 +25,11 @@ export default function Hand({
 
   // Calculate overlap based on number of cards
   const getCardMargin = () => {
-    if (cards.length <= 5) return -10;
-    if (cards.length <= 8) return -20;
-    return -30;
+    if (cards.length <= 4) return -10;
+    if (cards.length <= 6) return -25;
+    if (cards.length <= 8) return -35;
+    if (cards.length <= 10) return -45;
+    return -55;
   };
 
   return (
@@ -56,7 +58,6 @@ export default function Hand({
           </View>
         ))}
       </ScrollView>
-      <Text style={styles.cardCount}>{cards.length} cards</Text>
     </View>
   );
 }
@@ -66,16 +67,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     alignItems: 'center',
   },
   cardWrapper: {
     zIndex: 1,
-  },
-  cardCount: {
-    color: '#a0a0a0',
-    fontSize: 12,
-    marginTop: 5,
   },
 });
