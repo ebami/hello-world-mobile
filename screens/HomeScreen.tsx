@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,8 +7,14 @@ import {
   ImageBackground,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { RulesNavigator } from './rules';
 
 export default function HomeScreen() {
+  const [showRules, setShowRules] = useState(false);
+
+  if (showRules) {
+    return <RulesNavigator onBack={() => setShowRules(false)} />;
+  }
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -44,7 +50,11 @@ export default function HomeScreen() {
 
       {/* Secondary Buttons */}
       <View style={styles.secondaryButtons}>
-        <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.7}>
+        <TouchableOpacity 
+          style={styles.secondaryButton} 
+          activeOpacity={0.7}
+          onPress={() => setShowRules(true)}
+        >
           <Text style={styles.secondaryButtonText}>How to Play</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.7}>
