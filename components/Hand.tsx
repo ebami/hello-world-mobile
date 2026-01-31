@@ -65,10 +65,11 @@ export default function Hand({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
+    overflow: 'visible',
   },
   scrollContent: {
     paddingHorizontal: 10,
-    paddingTop: 15,
+    paddingTop: 12,
     paddingBottom: 5,
     alignItems: 'center',
   },
