@@ -62,8 +62,8 @@ const cardImages: Record<string, any> = {
   'K♠': require('./cards/king_of_spades.png'),
 };
 
-// Card back image (using a simple placeholder - could be replaced with actual card back)
-export const cardBack = require('./cards/black_joker.png');
+// Card back image
+export const cardBack = require('./cards/card_back.png');
 
 export function getCardImage(rank: Rank, suit: Suit): any {
   const key = `${rank}${suit}`;
