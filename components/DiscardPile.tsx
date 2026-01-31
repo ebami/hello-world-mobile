@@ -40,13 +40,15 @@ export default function DiscardPile({
 
       {/* Discard Pile */}
       <View style={styles.pile}>
-        {topCard ? (
-          <Card card={topCard} size="large" />
-        ) : (
-          <View style={styles.emptyPile}>
-            <Text style={styles.emptyText}>Empty</Text>
-          </View>
-        )}
+        <View style={styles.cardWrapper}>
+          {topCard ? (
+            <Card card={topCard} size="large" />
+          ) : (
+            <View style={styles.emptyPile}>
+              <Text style={styles.emptyText}>Empty</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.pileLabel}>DISCARD</Text>
       </View>
 
@@ -91,6 +93,12 @@ const styles = StyleSheet.create({
   deckShadow2: {
     top: 4,
     left: 4,
+  },
+  cardWrapper: {
+    width: 90,
+    height: 126,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   pileLabel: {
     color: '#a0a0a0',
