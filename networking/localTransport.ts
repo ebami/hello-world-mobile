@@ -1,4 +1,13 @@
-// Local transport adapter for single-player mode - wraps existing reducer logic
+/**
+ * @fileoverview Local transport adapter for single-player mode.
+ * 
+ * Wraps existing game reducer logic to provide the same GameTransport interface
+ * as the socket transport, enabling unified UI code across play modes.
+ * Executes game logic synchronously and schedules AI bot moves automatically.
+ * 
+ * @module networking/localTransport
+ */
+
 import type {
   GameTransport,
   GameAction,
@@ -17,7 +26,10 @@ import {
 } from '../game';
 import { getComputerMove, getBotTurnDelay, type Difficulty } from '../game/ai';
 
-// Convert internal GameState to PublicGameView for transport compatibility
+/**
+ * Convert internal GameState to PublicGameView for transport compatibility.
+ * This mirrors what the server would send to clients.
+ */
 function toPublicView(state: GameState, roomId: string): PublicGameView {
   return {
     roomId,
@@ -38,7 +50,10 @@ function toPublicView(state: GameState, roomId: string): PublicGameView {
   };
 }
 
-// Convert internal GameState to PrivateHandPayload
+/**
+ * Convert internal GameState to PrivateHandPayload.
+ * This mirrors what the server would send privately to each player.
+ */
 function toHandPayload(state: GameState, roomId: string, playerId: string): PrivateHandPayload {
   const playerIndex = playerId === 'player' ? 0 : 1;
   return {
@@ -48,6 +63,9 @@ function toHandPayload(state: GameState, roomId: string, playerId: string): Priv
   };
 }
 
+/**
+ * Create initial game state for a new local game.
+ */
 function createInitialState(): GameState {
   const deck = shuffleDeck(generateDeck());
   const { hands, remaining } = dealCards(deck, 2, 5);
@@ -66,6 +84,32 @@ function createInitialState(): GameState {
   };
 }
 
+/**
+ * Local transport adapter for single-player mode against AI.
+ * 
+ * Implements the GameTransport interface by wrapping the existing game logic,
+ * enabling the same UI code to work for both single-player and multiplayer.
+ * 
+ * Features:
+ * - Immediate state updates (no network latency)
+ * - Configurable AI difficulty
+ * - Automatic bot turn scheduling with difficulty-based delays
+ * - Same callback interface as SocketTransport
+ * 
+ * @example
+ * ```typescript
+ * const transport = new LocalTransport('hard');
+ * 
+ * transport.setCallbacks({
+ *   onGameStart: (state, hand) => initializeUI(state, hand),
+ *   onStateUpdate: (state) => updateGameUI(state),
+ *   onGameOver: (winnerId, message) => showGameOver(message),
+ * });
+ * 
+ * await transport.connect(); // Game starts immediately
+ * transport.sendAction({ type: 'PLAY_CARDS', cards: [card] });
+ * ```
+ */
 export class LocalTransport implements GameTransport {
   private callbacks: Partial<TransportCallbacks> = {};
   private connectionStatus: ConnectionStatus = 'disconnected';
@@ -75,14 +119,26 @@ export class LocalTransport implements GameTransport {
   private difficulty: Difficulty;
   private botTimer: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * Create a new LocalTransport instance.
+   * @param difficulty - AI difficulty level (default: 'medium')
+   */
   constructor(difficulty: Difficulty = 'medium') {
     this.difficulty = difficulty;
   }
 
+  /**
+   * Update the AI difficulty level.
+   * @param difficulty - New difficulty level
+   */
   setDifficulty(difficulty: Difficulty): void {
     this.difficulty = difficulty;
   }
 
+  /**
+   * Initialize the game and emit game start event.
+   * Unlike SocketTransport, this immediately starts a new game.
+   */
   async connect(): Promise<void> {
     this.connectionStatus = 'connected';
     this.callbacks.onConnectionChange?.('connected');

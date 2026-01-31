@@ -1,4 +1,12 @@
-// Socket.IO transport adapter implementing GameTransport interface
+/**
+ * @fileoverview Socket.IO transport adapter implementing GameTransport interface.
+ * 
+ * Provides real-time multiplayer communication via Socket.IO, including
+ * room management, game actions, and server event handling.
+ * 
+ * @module networking/socketTransport
+ */
+
 import type {
   GameTransport,
   GameAction,
@@ -10,16 +18,47 @@ import type {
 } from './types';
 import { createSocket, disconnectSocket, type TypedSocket } from './socket';
 
+/**
+ * Socket.IO transport adapter for online multiplayer.
+ * 
+ * Implements the GameTransport interface using Socket.IO for real-time
+ * communication with the game server.
+ * 
+ * @example
+ * ```typescript
+ * const transport = new SocketTransport('http://game-server.com:3001');
+ * 
+ * transport.setCallbacks({
+ *   onConnectionChange: (status) => console.log('Status:', status),
+ *   onStateUpdate: (state) => updateGameUI(state),
+ *   onError: (error) => showError(error),
+ * });
+ * 
+ * await transport.connect();
+ * const room = await transport.createRoom({ playerName: 'Alice' });
+ * transport.startGame();
+ * transport.sendAction({ type: 'PLAY_CARDS', cards: [card] });
+ * ```
+ */
 export class SocketTransport implements GameTransport {
   private socket: TypedSocket | null = null;
   private callbacks: Partial<TransportCallbacks> = {};
   private connectionStatus: ConnectionStatus = 'disconnected';
   private readonly serverUrl: string;
 
+  /**
+   * Create a new SocketTransport instance.
+   * @param serverUrl - Server URL to connect to (default: localhost:3001)
+   */
   constructor(serverUrl?: string) {
     this.serverUrl = serverUrl ?? 'http://localhost:3001';
   }
 
+  /**
+   * Connect to the game server.
+   * @returns Promise that resolves when connected
+   * @throws Error if connection fails
+   */
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.updateConnectionStatus('connecting');
