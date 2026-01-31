@@ -14,14 +14,25 @@ export default function DiscardPile({
   deckCount,
   drawPressure = 0,
 }: DiscardPileProps) {
+  // Create a dummy card for the deck display
+  const dummyCard = { id: 'deck', rank: 'A' as const, suit: '♠' as const };
+
   return (
     <View style={styles.container}>
       {/* Deck */}
       <View style={styles.pile}>
         <View style={styles.deckStack}>
-          <View style={styles.deckCard} />
-          <View style={[styles.deckCard, styles.deckCardOffset1]} />
-          <View style={[styles.deckCard, styles.deckCardOffset2]} />
+          {deckCount > 0 ? (
+            <>
+              {deckCount > 2 && <View style={[styles.deckShadow, styles.deckShadow2]} />}
+              {deckCount > 1 && <View style={[styles.deckShadow, styles.deckShadow1]} />}
+              <Card card={dummyCard} faceDown size="large" />
+            </>
+          ) : (
+            <View style={styles.emptyPile}>
+              <Text style={styles.emptyText}>Empty</Text>
+            </View>
+          )}
         </View>
         <Text style={styles.pileLabel}>DECK</Text>
         <Text style={styles.deckCount}>{deckCount}</Text>
@@ -66,20 +77,18 @@ const styles = StyleSheet.create({
     height: 126,
     position: 'relative',
   },
-  deckCard: {
+  deckShadow: {
     position: 'absolute',
     width: 90,
     height: 126,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#2a4a6a',
     borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#ffd700',
   },
-  deckCardOffset1: {
+  deckShadow1: {
     top: 2,
     left: 2,
   },
-  deckCardOffset2: {
+  deckShadow2: {
     top: 4,
     left: 4,
   },
