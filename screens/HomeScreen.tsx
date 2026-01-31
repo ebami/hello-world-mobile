@@ -9,14 +9,26 @@ import { StatusBar } from 'expo-status-bar';
 import { RulesNavigator } from './rules';
 import SinglePlayerSetup from './SinglePlayerSetup';
 import GameScreen from './GameScreen';
+import LobbyScreen from './LobbyScreen';
+import WaitingRoomScreen from './WaitingRoomScreen';
+import MultiplayerGameScreen from './MultiplayerGameScreen';
 import { ErrorBoundary } from '../components';
 import type { Difficulty } from '../game/ai';
+import type { PublicGameView, PrivateHandPayload } from '../game/types';
+import type { SocketTransport } from '../networking';
+import type { RoomInfo } from '../networking/types';
 
-type ScreenState = 'home' | 'rules' | 'setup' | 'game';
+type ScreenState = 'home' | 'rules' | 'setup' | 'game' | 'lobby' | 'waiting' | 'multiplayer-game';
 
 export default function HomeScreen() {
   const [currentScreen, setCurrentScreen] = useState<ScreenState>('home');
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
+  
+  // Multiplayer state
+  const [currentRoom, setCurrentRoom] = useState<RoomInfo | null>(null);
+  const [transport, setTransport] = useState<SocketTransport | null>(null);
+  const [initialGameState, setInitialGameState] = useState<PublicGameView | null>(null);
+  const [initialHand, setInitialHand] = useState<PrivateHandPayload | null>(null);
 
   const handleStartGame = (selectedDifficulty: Difficulty) => {
     setDifficulty(selectedDifficulty);
@@ -24,6 +36,11 @@ export default function HomeScreen() {
   };
 
   const handleBackToHome = () => {
+    // Clean up multiplayer state
+    setCurrentRoom(null);
+    setTransport(null);
+    setInitialGameState(null);
+    setInitialHand(null);
     setCurrentScreen('home');
   };
 
@@ -31,6 +48,19 @@ export default function HomeScreen() {
     // Re-mount GameScreen by going to setup and immediately back to game
     setCurrentScreen('setup');
     setTimeout(() => setCurrentScreen('game'), 0);
+  };
+
+  // Multiplayer handlers
+  const handleRoomJoined = (room: RoomInfo, socketTransport: SocketTransport) => {
+    setCurrentRoom(room);
+    setTransport(socketTransport);
+    setCurrentScreen('waiting');
+  };
+
+  const handleMultiplayerGameStart = (state: PublicGameView, hand: PrivateHandPayload) => {
+    setInitialGameState(state);
+    setInitialHand(hand);
+    setCurrentScreen('multiplayer-game');
   };
 
   if (currentScreen === 'rules') {
@@ -53,6 +83,39 @@ export default function HomeScreen() {
           difficulty={difficulty}
           onBack={handleBackToHome}
           onPlayAgain={handlePlayAgain}
+        />
+      </ErrorBoundary>
+    );
+  }
+
+  if (currentScreen === 'lobby') {
+    return (
+      <LobbyScreen
+        onBack={handleBackToHome}
+        onRoomJoined={handleRoomJoined}
+      />
+    );
+  }
+
+  if (currentScreen === 'waiting' && currentRoom && transport) {
+    return (
+      <WaitingRoomScreen
+        room={currentRoom}
+        transport={transport}
+        onBack={handleBackToHome}
+        onGameStart={handleMultiplayerGameStart}
+      />
+    );
+  }
+
+  if (currentScreen === 'multiplayer-game' && transport && initialGameState && initialHand) {
+    return (
+      <ErrorBoundary onReset={handleBackToHome}>
+        <MultiplayerGameScreen
+          transport={transport}
+          initialState={initialGameState}
+          initialHand={initialHand}
+          onBack={handleBackToHome}
         />
       </ErrorBoundary>
     );
@@ -95,6 +158,17 @@ export default function HomeScreen() {
         accessibilityRole="button"
       >
         <Text style={styles.playButtonText}>PLAY NOW</Text>
+      </TouchableOpacity>
+
+      {/* Multiplayer Button */}
+      <TouchableOpacity 
+        style={styles.multiplayerButton} 
+        activeOpacity={0.8}
+        onPress={() => setCurrentScreen('lobby')}
+        accessibilityLabel="Multiplayer"
+        accessibilityRole="button"
+      >
+        <Text style={styles.multiplayerButtonText}>🌐 MULTIPLAYER</Text>
       </TouchableOpacity>
 
       {/* Secondary Buttons */}
@@ -232,6 +306,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1a1a2e',
     letterSpacing: 2,
+  },
+  multiplayerButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#60a5fa',
+    paddingHorizontal: 50,
+    paddingVertical: 14,
+    borderRadius: 30,
+    marginTop: 15,
+  },
+  multiplayerButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#60a5fa',
+    letterSpacing: 1,
   },
   secondaryButtons: {
     flexDirection: 'row',
