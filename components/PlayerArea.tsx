@@ -69,7 +69,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
     marginVertical: 5,
     marginHorizontal: 5,
-    overflow: 'hidden',
   },
   opponentContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
