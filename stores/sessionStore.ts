@@ -121,7 +121,7 @@ const initialState = {
  * setConnectionStatus('connected');
  * ```
  */
-export const useSessionStore = create<SessionState>((set) => ({
+export const useSessionStore = create<SessionState>((set, get) => ({
   ...initialState,
 
   setConnectionStatus: (status) =>
@@ -131,7 +131,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     set(room ? {
       roomId: room.roomId,
       players: room.players,
-      isHost: room.hostId === (room.players.find(p => !p.isBot)?.playerId ?? null),
+      isHost: room.hostId === get().playerId,
     } : {
       roomId: null,
       players: [],
