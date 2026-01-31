@@ -68,7 +68,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingTop: 15,
+    paddingBottom: 5,
     alignItems: 'center',
   },
   cardWrapper: {
