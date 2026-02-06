@@ -7,3 +7,4 @@
  */
 
 export { useSessionStore, type SessionState } from './sessionStore';
+export { useStatsStore, type PlayerStats, type StatsState, type DifficultyStats } from './statsStore';

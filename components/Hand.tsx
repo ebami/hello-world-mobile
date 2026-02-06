@@ -1,15 +1,18 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
+import { StyleSheet, View, ScrollView, Platform } from 'react-native';
+import Animated, { Layout, FadeInRight, SlideInRight } from 'react-native-reanimated';
 import type { Card as CardType } from '../game/types';
 import Card from './Card';
 
 interface HandProps {
-  cards: CardType[];
-  selectedCards?: CardType[];
-  onCardPress?: (card: CardType) => void;
-  faceDown?: boolean;
-  disabled?: boolean;
-  maxVisible?: number;
+  readonly cards: CardType[];
+  readonly selectedCards?: CardType[];
+  readonly onCardPress?: (card: CardType) => void;
+  readonly faceDown?: boolean;
+  readonly disabled?: boolean;
+  readonly maxVisible?: number;
+  /** Enable dealing/draw animation for new cards */
+  readonly animateDealing?: boolean;
 }
 
 export default function Hand({
@@ -19,9 +22,34 @@ export default function Hand({
   faceDown = false,
   disabled = false,
   maxVisible = 10,
+  animateDealing = true,
 }: HandProps) {
   const isSelected = (card: CardType) =>
     selectedCards.some((c) => c.id === card.id);
+
+  // Track previous card count to detect new cards
+  const prevCardCount = useRef(cards.length);
+  const [newCardIds, setNewCardIds] = useState<Set<string>>(new Set());
+
+  // Detect newly added cards for animation
+  useEffect(() => {
+    if (cards.length > prevCardCount.current) {
+      // New cards were added
+      const newIds = new Set<string>();
+      for (let i = prevCardCount.current; i < cards.length; i++) {
+        newIds.add(cards[i].id);
+      }
+      setNewCardIds(newIds);
+      
+      // Clear new card flags after animation completes
+      const timer = setTimeout(() => {
+        setNewCardIds(new Set());
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+    prevCardCount.current = cards.length;
+  }, [cards.length, cards]);
 
   // Calculate overlap based on number of cards
   const getCardMargin = () => {
@@ -32,6 +60,9 @@ export default function Hand({
     return -55;
   };
 
+  // Determine if animations should be used (skip on web for compatibility)
+  const useAnimations = animateDealing && Platform.OS !== 'web';
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -39,24 +70,32 @@ export default function Hand({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {cards.map((card, index) => (
-          <View
-            key={card.id}
-            style={[
-              styles.cardWrapper,
-              index > 0 && { marginLeft: getCardMargin() },
-            ]}
-          >
-            <Card
-              card={card}
-              faceDown={faceDown}
-              selected={isSelected(card)}
-              onPress={onCardPress ? () => onCardPress(card) : undefined}
-              disabled={disabled}
-              size="medium"
-            />
-          </View>
-        ))}
+        {cards.map((card, index) => {
+          const isNewCard = newCardIds.has(card.id);
+          
+          return (
+            <Animated.View
+              key={card.id}
+              layout={useAnimations ? Layout.springify().damping(15).stiffness(100) : undefined}
+              entering={useAnimations && isNewCard ? SlideInRight.delay(50).springify().damping(12) : undefined}
+              style={[
+                styles.cardWrapper,
+                index > 0 && { marginLeft: getCardMargin() },
+              ]}
+            >
+              <Card
+                card={card}
+                faceDown={faceDown}
+                selected={isSelected(card)}
+                onPress={onCardPress ? () => onCardPress(card) : undefined}
+                disabled={disabled}
+                size="medium"
+                animateEntry={useAnimations && isNewCard}
+                entryDelay={index * 50}
+              />
+            </Animated.View>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -77,3 +116,4 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
 });
+

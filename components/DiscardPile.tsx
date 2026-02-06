@@ -1,12 +1,22 @@
-import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { StyleSheet, View, Text, Platform } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  withTiming,
+  withRepeat,
+  Easing,
+  ZoomIn,
+} from 'react-native-reanimated';
 import type { Card as CardType } from '../game/types';
 import Card from './Card';
 
 interface DiscardPileProps {
-  topCard?: CardType;
-  deckCount: number;
-  drawPressure?: number;
+  readonly topCard?: CardType;
+  readonly deckCount: number;
+  readonly drawPressure?: number;
 }
 
 export default function DiscardPile({
@@ -14,8 +24,75 @@ export default function DiscardPile({
   deckCount,
   drawPressure = 0,
 }: DiscardPileProps) {
+  // Track previous top card to detect new discards
+  const prevTopCardId = useRef<string | undefined>(undefined);
+  
+  // Animation values
+  const discardScale = useSharedValue(1);
+  const discardRotation = useSharedValue(0);
+  const pressurePulse = useSharedValue(1);
+  const pressureGlow = useSharedValue(0);
+
   // Create a dummy card for the deck display
   const dummyCard = { id: 'deck', rank: 'A' as const, suit: '♠' as const };
+
+  // Detect when a new card is played to discard pile
+  useEffect(() => {
+    if (topCard && topCard.id !== prevTopCardId.current && Platform.OS !== 'web') {
+      // Animate card landing
+      discardScale.value = withSequence(
+        withSpring(1.15, { damping: 8, stiffness: 300 }),
+        withSpring(1, { damping: 12, stiffness: 200 })
+      );
+      discardRotation.value = withSequence(
+        withTiming(Math.random() * 6 - 3, { duration: 100 }),
+        withSpring(0, { damping: 10, stiffness: 100 })
+      );
+    }
+    prevTopCardId.current = topCard?.id;
+  }, [topCard, discardScale, discardRotation]);
+
+  // Pulse animation for draw pressure indicator
+  useEffect(() => {
+    if (drawPressure > 0 && Platform.OS !== 'web') {
+      pressurePulse.value = withRepeat(
+        withSequence(
+          withTiming(1.1, { duration: 500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        true
+      );
+      pressureGlow.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 600 }),
+          withTiming(0.5, { duration: 600 })
+        ),
+        -1,
+        true
+      );
+    } else {
+      pressurePulse.value = 1;
+      pressureGlow.value = 0;
+    }
+  }, [drawPressure, pressurePulse, pressureGlow]);
+
+  // Animated styles for discard card
+  const discardAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: discardScale.value },
+      { rotate: `${discardRotation.value}deg` },
+    ],
+  }));
+
+  // Animated styles for pressure indicator
+  const pressureAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressurePulse.value }],
+    shadowOpacity: pressureGlow.value * 0.8,
+    shadowRadius: 10 + pressureGlow.value * 10,
+  }));
+
+  const useAnimations = Platform.OS !== 'web';
 
   return (
     <View style={styles.container}>
@@ -40,7 +117,7 @@ export default function DiscardPile({
 
       {/* Discard Pile */}
       <View style={styles.pile}>
-        <View style={styles.cardWrapper}>
+        <Animated.View style={[styles.cardWrapper, discardAnimatedStyle]}>
           {topCard ? (
             <Card card={topCard} size="large" />
           ) : (
@@ -48,16 +125,19 @@ export default function DiscardPile({
               <Text style={styles.emptyText}>Empty</Text>
             </View>
           )}
-        </View>
+        </Animated.View>
         <Text style={styles.pileLabel}>DISCARD</Text>
       </View>
 
       {/* Draw Pressure Indicator */}
       {drawPressure > 0 && (
-        <View style={styles.pressureContainer}>
+        <Animated.View
+          entering={useAnimations ? ZoomIn.springify().damping(12) : undefined}
+          style={[styles.pressureContainer, pressureAnimatedStyle]}
+        >
           <Text style={styles.pressureText}>⚠️ +{drawPressure}</Text>
           <Text style={styles.pressureSubtext}>Draw Pressure</Text>
-        </View>
+        </Animated.View>
       )}
     </View>
   );
@@ -138,6 +218,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     transform: [{ translateY: -30 }],
+    shadowColor: '#e63946',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
   },
   pressureText: {
     color: '#fff',

@@ -12,13 +12,15 @@ import GameScreen from './GameScreen';
 import LobbyScreen from './LobbyScreen';
 import WaitingRoomScreen from './WaitingRoomScreen';
 import MultiplayerGameScreen from './MultiplayerGameScreen';
+import StatsScreen from './StatsScreen';
 import { ErrorBoundary } from '../components';
+import { hapticButtonPress } from '../utils/haptics';
 import type { Difficulty } from '../game/ai';
 import type { PublicGameView, PrivateHandPayload } from '../game/types';
 import type { SocketTransport } from '../networking';
 import type { RoomInfo } from '../networking/types';
 
-type ScreenState = 'home' | 'rules' | 'setup' | 'game' | 'lobby' | 'waiting' | 'multiplayer-game';
+type ScreenState = 'home' | 'rules' | 'setup' | 'game' | 'lobby' | 'waiting' | 'multiplayer-game' | 'stats';
 
 export default function HomeScreen() {
   const [currentScreen, setCurrentScreen] = useState<ScreenState>('home');
@@ -67,6 +69,10 @@ export default function HomeScreen() {
     return <RulesNavigator onBack={handleBackToHome} />;
   }
 
+  if (currentScreen === 'stats') {
+    return <StatsScreen onBack={handleBackToHome} />;
+  }
+
   if (currentScreen === 'setup') {
     return (
       <SinglePlayerSetup
@@ -83,6 +89,7 @@ export default function HomeScreen() {
           difficulty={difficulty}
           onBack={handleBackToHome}
           onPlayAgain={handlePlayAgain}
+          onViewStats={() => setCurrentScreen('stats')}
         />
       </ErrorBoundary>
     );
@@ -153,7 +160,10 @@ export default function HomeScreen() {
       <TouchableOpacity 
         style={styles.playButton} 
         activeOpacity={0.8}
-        onPress={() => setCurrentScreen('setup')}
+        onPress={() => {
+          hapticButtonPress();
+          setCurrentScreen('setup');
+        }}
         accessibilityLabel="Play now"
         accessibilityRole="button"
       >
@@ -164,7 +174,10 @@ export default function HomeScreen() {
       <TouchableOpacity 
         style={styles.multiplayerButton} 
         activeOpacity={0.8}
-        onPress={() => setCurrentScreen('lobby')}
+        onPress={() => {
+          hapticButtonPress();
+          setCurrentScreen('lobby');
+        }}
         accessibilityLabel="Multiplayer"
         accessibilityRole="button"
       >
@@ -176,14 +189,26 @@ export default function HomeScreen() {
         <TouchableOpacity 
           style={styles.secondaryButton} 
           activeOpacity={0.7}
-          onPress={() => setCurrentScreen('rules')}
+          onPress={() => {
+            hapticButtonPress();
+            setCurrentScreen('rules');
+          }}
           accessibilityLabel="How to play"
           accessibilityRole="button"
         >
           <Text style={styles.secondaryButtonText}>How to Play</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.7}>
-          <Text style={styles.secondaryButtonText}>Settings</Text>
+        <TouchableOpacity 
+          style={styles.secondaryButton} 
+          activeOpacity={0.7}
+          onPress={() => {
+            hapticButtonPress();
+            setCurrentScreen('stats');
+          }}
+          accessibilityLabel="Statistics"
+          accessibilityRole="button"
+        >
+          <Text style={styles.secondaryButtonText}>📊 Stats</Text>
         </TouchableOpacity>
       </View>
 

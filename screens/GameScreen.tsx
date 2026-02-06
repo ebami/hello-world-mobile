@@ -1,4 +1,4 @@
-import React, { useReducer, useEffect, useMemo, useCallback, useState } from 'react';
+import React, { useReducer, useEffect, useMemo, useCallback, useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -20,12 +20,21 @@ import {
   declareLastCard,
 } from '../game';
 import { getComputerMove, getBotTurnDelay, type Difficulty } from '../game/ai';
-import { PlayerArea, DiscardPile, ActionButtons, SuitPicker } from '../components';
+import { PlayerArea, DiscardPile, ActionButtons, SuitPicker, GameOverOverlay } from '../components';
+import { useStatsStore } from '../stores/statsStore';
+import {
+  hapticButtonPress,
+  hapticCardPlayed,
+  hapticDrawCard,
+  hapticInvalidMove,
+} from '../utils/haptics';
+import { playCardPlay, playDrawCard, playButtonTap } from '../utils/soundManager';
 
 interface GameScreenProps {
   readonly difficulty: Difficulty;
   readonly onBack: () => void;
   readonly onPlayAgain: () => void;
+  readonly onViewStats?: () => void;
 }
 
 // Game actions
@@ -104,12 +113,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-export default function GameScreen({ difficulty, onBack, onPlayAgain }: GameScreenProps) {
+export default function GameScreen({ difficulty, onBack, onPlayAgain, onViewStats }: GameScreenProps) {
   const [state, dispatch] = useReducer(gameReducer, null, createInitialState);
   const [selectedCards, setSelectedCards] = useState<CardType[]>([]);
   const [showSuitPicker, setShowSuitPicker] = useState(false);
   const [pendingPlay, setPendingPlay] = useState<CardType[] | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showGameOver, setShowGameOver] = useState(false);
+
+  // Stats tracking
+  const recordGameResult = useStatsStore((state) => state.recordGameResult);
+  const cardsPlayedRef = useRef(0);
+  const gameEndedRef = useRef(false);
 
   const playerHand = state.players[0];
   const opponentHand = state.players[1];
@@ -157,28 +172,22 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain }: GameScre
 
   // Handle game over
   useEffect(() => {
-    if (gameOver.over) {
-      let message = "🤝 It's a draw!";
-      if (gameOver.winner === 0) {
-        message = '🎉 Congratulations! You Win!';
-      } else if (gameOver.winner === 1) {
-        message = '😔 Bot Wins! Better luck next time.';
-      }
+    if (gameOver.over && !gameEndedRef.current) {
+      gameEndedRef.current = true;
       
-      Alert.alert(
-        'Game Over',
-        message,
-        [
-          { text: 'Play Again', onPress: onPlayAgain },
-          { text: 'Main Menu', onPress: onBack },
-        ]
-      );
+      // Record stats
+      const won = gameOver.winner === 0;
+      recordGameResult(won, difficulty, cardsPlayedRef.current);
+      
+      // Show game over overlay
+      setShowGameOver(true);
     }
-  }, [gameOver.over, gameOver.winner, onBack, onPlayAgain]);
+  }, [gameOver.over, gameOver.winner, difficulty, recordGameResult]);
 
   const handleCardPress = useCallback((card: CardType) => {
     if (!isPlayerTurn || isProcessing) return;
     
+    hapticButtonPress();
     setSelectedCards((prev) =>
       prev.some((c) => c.id === card.id)
         ? prev.filter((c) => c.id !== card.id)
@@ -200,10 +209,16 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain }: GameScre
           );
 
     if (!isValid) {
+      hapticInvalidMove();
       Alert.alert('Invalid Move', 'Those cards cannot be played together.');
       setSelectedCards([]);
       return;
     }
+
+    // Track cards played
+    cardsPlayedRef.current += selectedCards.length;
+    hapticCardPlayed();
+    playCardPlay();
 
     // Check if last card is an Ace (need suit picker)
     const lastCard = selectedCards.at(-1);
@@ -232,16 +247,21 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain }: GameScre
 
   const handleDraw = useCallback(() => {
     if (!isPlayerTurn || isProcessing || state.deck.length === 0) return;
+    hapticDrawCard();
+    playDrawCard();
     dispatch({ type: 'DRAW_CARD' });
     setSelectedCards([]);
   }, [isPlayerTurn, isProcessing, state.deck.length]);
 
   const handleDeclareLastCard = useCallback(() => {
     if (!canDeclareLastCard) return;
+    hapticButtonPress();
+    playButtonTap();
     dispatch({ type: 'DECLARE_LAST_CARD', player: 0 });
   }, [canDeclareLastCard]);
 
   const handleQuit = useCallback(() => {
+    hapticButtonPress();
     Alert.alert(
       'Quit Game?',
       'Are you sure you want to quit? Progress will be lost.',
@@ -251,6 +271,25 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain }: GameScre
       ]
     );
   }, [onBack]);
+
+  const handleGameOverPlayAgain = useCallback(() => {
+    setShowGameOver(false);
+    gameEndedRef.current = false;
+    cardsPlayedRef.current = 0;
+    onPlayAgain();
+  }, [onPlayAgain]);
+
+  const handleGameOverMainMenu = useCallback(() => {
+    setShowGameOver(false);
+    onBack();
+  }, [onBack]);
+
+  const handleViewStats = useCallback(() => {
+    setShowGameOver(false);
+    if (onViewStats) {
+      onViewStats();
+    }
+  }, [onViewStats]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -334,6 +373,15 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain }: GameScre
           setShowSuitPicker(false);
           setPendingPlay(null);
         }}
+      />
+
+      {/* Game Over Overlay */}
+      <GameOverOverlay
+        visible={showGameOver}
+        winner={gameOver.winner}
+        onPlayAgain={handleGameOverPlayAgain}
+        onMainMenu={handleGameOverMainMenu}
+        onViewStats={handleViewStats}
       />
     </SafeAreaView>
   );

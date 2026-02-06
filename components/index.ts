@@ -5,3 +5,4 @@ export { default as PlayerArea } from './PlayerArea';
 export { default as DiscardPile } from './DiscardPile';
 export { default as SuitPicker } from './SuitPicker';
 export { default as ErrorBoundary } from './ErrorBoundary';
+export { default as GameOverOverlay } from './GameOverOverlay';

@@ -1,28 +1,40 @@
-## Plan: Phase 3 Polish — Animations, Sound, and Stats
+## Plan: Phase 3 Polish — Animations, Sound, and Stats ✅ COMPLETED
 
-Add visual polish with react-native-reanimated card animations, audio feedback with expo-av, and player progression tracking via AsyncStorage persistence.
+> **Status:** Implemented February 2026  
+> **Dependencies:** react-native-reanimated@4.2.1, react-native-gesture-handler@2.30.0, expo-audio@1.1.1, expo-haptics@15.0.8, @react-native-async-storage/async-storage@2.2.0
+
+Add visual polish with react-native-reanimated card animations, audio feedback with expo-audio, and player progression tracking via AsyncStorage persistence.
 
 ### Steps
 
-1. **Install polish dependencies** — Add `react-native-reanimated` (v3+), `react-native-gesture-handler`, `expo-av`, `expo-haptics`, and `@react-native-async-storage/async-storage` to `package.json`. Configure reanimated babel plugin.
+1. ✅ **Install polish dependencies** — Added `react-native-reanimated` (v4.2.1), `react-native-gesture-handler` (v2.30.0), `expo-audio` (v1.1.1), `expo-haptics`, and `@react-native-async-storage/async-storage` to `package.json`. Configured reanimated babel plugin.
 
-2. **Create animated Card component** — Refactor `components/Card.tsx` to use `Animated.View` with `useSharedValue` and `useAnimatedStyle`. Add flip animation (faceDown ↔ faceUp), selection scale/pop effect, and play animation (fly to discard pile).
+2. ✅ **Create animated Card component** — Refactored `components/Card.tsx` to use `Animated.View` with `useSharedValue` and `useAnimatedStyle`. Added flip animation (faceDown ↔ faceUp), selection scale/pop effect with lift, and press feedback animation.
 
-3. **Add Hand dealing and draw animations** — Update `components/Hand.tsx` with staggered entry animations for initial deal and smooth card insertion for draws. Use `Layout` transitions from reanimated for automatic reorganization.
+3. ✅ **Add Hand dealing and draw animations** — Updated `components/Hand.tsx` with `Layout` transitions from reanimated for automatic reorganization. Added `SlideInRight` entering animation for newly drawn cards.
 
-4. **Animate discard pile and deck** — Enhance `components/DiscardPile.tsx` with card landing animation, deck shuffle effect when reshuffled, and pulsing draw pressure indicator.
+4. ✅ **Animate discard pile and deck** — Enhanced `components/DiscardPile.tsx` with card landing animation (scale + rotation), and pulsing glow effect for draw pressure indicator.
 
-5. **Create sound manager** — Add `utils/soundManager.ts` using `expo-av` with preloaded sounds for card-flip, card-play, draw-card, shuffle, win, lose, and button-tap. Create `assets/sounds/` folder with audio files.
+5. ✅ **Create sound manager** — Added `utils/soundManager.ts` using `expo-audio` with preloaded sounds API. Created `assets/sounds/` folder structure (audio files to be added).
 
-6. **Add haptic feedback** — Integrate `expo-haptics` for button presses (light impact), card selection (selection feedback), and game over (success/error notification).
+6. ✅ **Add haptic feedback** — Integrated `expo-haptics` for button presses (light impact), card selection (selection feedback), card played (medium impact), draw card (light), and game over (success/error notification).
 
-7. **Design stats schema and persistence** — Create `stores/statsStore.ts` with Zustand + AsyncStorage persist middleware. Track games played, wins/losses by difficulty, win streaks, and timestamps.
+7. ✅ **Design stats schema and persistence** — Created `stores/statsStore.ts` with Zustand + AsyncStorage persist middleware. Tracks games played, wins/losses by difficulty, win streaks, and timestamps. Uses conditional persistence (native only) to avoid web compatibility issues.
 
-8. **Build stats tracking in GameScreen** — Update `screens/GameScreen.tsx` game over handler to call stats store with outcome, difficulty, turns played, and cards played.
+8. ✅ **Build stats tracking in GameScreen** — Updated `screens/GameScreen.tsx` game over handler to call stats store with outcome, difficulty, and cards played count.
 
-9. **Create Stats screen** — Add `screens/StatsScreen.tsx` displaying win rate, games by difficulty, current/best streaks, and total cards played. Add navigation button to `screens/HomeScreen.tsx`.
+9. ✅ **Create Stats screen** — Added `screens/StatsScreen.tsx` displaying win rate, games by difficulty, current/best streaks, and total cards played. Added navigation button to `screens/HomeScreen.tsx`.
 
-10. **Add win/lose celebration** — Create animated overlay in GameScreen with confetti (win) or subtle effect (loss), victory/defeat sound, and "Play Again" / "View Stats" actions.
+10. ✅ **Add win/lose celebration** — Created `components/GameOverOverlay.tsx` with animated confetti (win), fade overlay (loss), victory/defeat sounds, haptics, and "Play Again" / "View Stats" / "Main Menu" actions.
+
+### Web Compatibility Notes
+
+All animations include `Platform.OS !== 'web'` checks to gracefully degrade on web:
+- **Card flip:** Works on all platforms
+- **Layout transitions:** Disabled on web
+- **Entering animations:** Disabled on web  
+- **Confetti particles:** Static decoration on web, animated on native
+- **Stats persistence:** In-memory only on web (zustand/middleware uses import.meta)
 
 ### Sound Assets Needed
 
