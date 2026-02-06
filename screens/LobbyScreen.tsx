@@ -1,5 +1,5 @@
 // Lobby screen for creating and joining multiplayer rooms
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -29,6 +29,9 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
 
   const { connectionStatus, error, setConnectionStatus, setError, setPlayerName: savePlayerName } = useSessionStore();
 
+  // Use ref to track if we've handed off the transport (ref works in cleanup)
+  const handedOffRef = useRef(false);
+
   // Connect to server on mount
   useEffect(() => {
     const socketTransport = new SocketTransport();
@@ -44,7 +47,10 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
     });
 
     return () => {
-      socketTransport.disconnect();
+      // Only disconnect if we haven't handed off to WaitingRoom
+      if (!handedOffRef.current) {
+        socketTransport.disconnect();
+      }
     };
   }, [setConnectionStatus, setError]);
 
@@ -68,6 +74,7 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
         maxPlayers: 4,
       });
       savePlayerName(playerName.trim());
+      handedOffRef.current = true; // Mark transport as handed off before navigating
       onRoomJoined(room, transport);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create room';
@@ -79,6 +86,12 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
   }, [playerName, transport, connectionStatus, savePlayerName, onRoomJoined, setError]);
 
   const handleJoinRoom = useCallback(async () => {
+    console.log('[LobbyScreen] handleJoinRoom called');
+    console.log('[LobbyScreen] playerName:', playerName);
+    console.log('[LobbyScreen] roomCode:', roomCode);
+    console.log('[LobbyScreen] transport:', transport);
+    console.log('[LobbyScreen] connectionStatus:', connectionStatus);
+    
     if (!playerName.trim()) {
       Alert.alert('Name Required', 'Please enter your name to join a room.');
       return;
@@ -90,6 +103,7 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
     }
 
     if (!transport || connectionStatus !== 'connected') {
+      console.log('[LobbyScreen] Not connected - transport:', !!transport, 'status:', connectionStatus);
       Alert.alert('Not Connected', 'Please wait for connection to the server.');
       return;
     }
@@ -103,9 +117,11 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
         playerName: playerName.trim(),
       });
       savePlayerName(playerName.trim());
+      handedOffRef.current = true; // Mark transport as handed off before navigating
       onRoomJoined(room, transport);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to join room';
+      console.log('[LobbyScreen] Join error:', message);
       setError(message);
       Alert.alert('Error', message);
     } finally {

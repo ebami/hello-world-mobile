@@ -127,16 +127,23 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setConnectionStatus: (status) =>
     set({ connectionStatus: status }),
 
-  setRoom: (room) =>
+  setRoom: (room) => {
+    const state = get();
+    // Check against both playerId and playerName since hostId uses playerName
+    const isHost = room 
+      ? (room.hostId === state.playerId || room.hostId === state.playerName)
+      : false;
+    
     set(room ? {
       roomId: room.roomId,
       players: room.players,
-      isHost: room.hostId === get().playerId,
+      isHost,
     } : {
       roomId: null,
       players: [],
       isHost: false,
-    }),
+    });
+  },
 
   setPlayerId: (playerId) =>
     set({ playerId }),

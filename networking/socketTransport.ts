@@ -164,14 +164,18 @@ export class SocketTransport implements GameTransport {
   async joinRoom(options: JoinRoomOptions): Promise<RoomInfo> {
     return new Promise((resolve, reject) => {
       if (!this.socket?.connected) {
+        console.log('[SocketTransport] joinRoom failed: not connected');
         reject(new Error('Not connected to server'));
         return;
       }
 
+      console.log('[SocketTransport] Sending join_room:', options);
       this.socket.emit('join_room', options, (room, error) => {
         if (error || !room) {
+          console.log('[SocketTransport] joinRoom error:', error);
           reject(new Error(error ?? 'Failed to join room'));
         } else {
+          console.log('[SocketTransport] joinRoom success:', room);
           resolve(room);
         }
       });

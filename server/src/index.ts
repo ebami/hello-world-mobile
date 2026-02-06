@@ -38,11 +38,17 @@ const io = new Server<
   transports: ['websocket', 'polling'],
 });
 
+// Helper to get timestamp for logging
+function timestamp(): string {
+  return new Date().toISOString();
+}
+
 io.on('connection', (socket) => {
-  console.log(`[Server] Client connected: ${socket.id}`);
+  console.log(`[${timestamp()}] [Server] Client connected: ${socket.id}`);
 
   // Create room
   socket.on('create_room', (options, callback) => {
+    console.log(`[${timestamp()}] [Server] Create room request: playerName=${options.playerName}, socketId=${socket.id}`);
     try {
       const playerId = socket.id;
       const room = roomManager.createRoom(
@@ -57,15 +63,18 @@ io.on('connection', (socket) => {
       socket.data.roomId = room.roomId;
 
       socket.join(room.roomId);
+      console.log(`[${timestamp()}] [Server] Room created successfully: ${room.roomId}`);
       callback(room);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to create room';
+      console.log(`[${timestamp()}] [Server] Create room failed: ${message}`);
       callback(null, message);
     }
   });
 
   // Join room
   socket.on('join_room', (options, callback) => {
+    console.log(`[${timestamp()}] [Server] Join room request: roomId=${options.roomId}, playerName=${options.playerName}, socketId=${socket.id}`);
     try {
       const room = roomManager.joinRoom(
         options.roomId,
@@ -75,6 +84,7 @@ io.on('connection', (socket) => {
       );
 
       if (!room) {
+        console.log(`[${timestamp()}] [Server] Room not found: ${options.roomId}`);
         callback(null, 'Room not found');
         return;
       }
@@ -84,6 +94,7 @@ io.on('connection', (socket) => {
       socket.data.roomId = room.roomId;
 
       socket.join(room.roomId);
+      console.log(`[${timestamp()}] [Server] Player joined socket room: ${room.roomId}`);
       callback(room);
 
       // Notify other players
@@ -144,7 +155,7 @@ io.on('connection', (socket) => {
 
   // Handle disconnect
   socket.on('disconnect', (reason) => {
-    console.log(`[Server] Client disconnected: ${socket.id}, reason: ${reason}`);
+    console.log(`[${timestamp()}] [Server] Client disconnected: ${socket.id}, reason: ${reason}`);
 
     const roomId = socket.data.roomId;
     const playerName = socket.data.playerName;

@@ -50,7 +50,7 @@ class RoomManager {
     };
 
     this.rooms.set(roomId, roomData);
-    console.log(`[RoomManager] Created room ${roomId} by ${hostName}`);
+    console.log(`[${new Date().toISOString()}] [RoomManager] Created room ${roomId} by ${hostName}`);
     
     return roomInfo;
   }
@@ -84,7 +84,7 @@ class RoomManager {
     room.info.players.push(player);
     room.socketIds.set(playerName, socketId);
     
-    console.log(`[RoomManager] ${playerName} joined room ${roomId}`);
+    console.log(`[${new Date().toISOString()}] [RoomManager] ${playerName} joined room ${roomId}`);
     
     return room.info;
   }
@@ -106,17 +106,17 @@ class RoomManager {
     // If room is empty, delete it
     if (room.info.players.length === 0) {
       this.rooms.delete(roomId);
-      console.log(`[RoomManager] Room ${roomId} deleted (empty)`);
+      console.log(`[${new Date().toISOString()}] [RoomManager] Room ${roomId} deleted (empty)`);
       return null;
     }
 
     // If host left, assign new host
     if (room.info.hostId === playerName) {
       room.info.hostId = room.info.players[0].playerId;
-      console.log(`[RoomManager] New host for room ${roomId}: ${room.info.hostId}`);
+      console.log(`[${new Date().toISOString()}] [RoomManager] New host for room ${roomId}: ${room.info.hostId}`);
     }
 
-    console.log(`[RoomManager] ${playerName} left room ${roomId}`);
+    console.log(`[${new Date().toISOString()}] [RoomManager] ${playerName} left room ${roomId}`);
     
     return room.info;
   }
