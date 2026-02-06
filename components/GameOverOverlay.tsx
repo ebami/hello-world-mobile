@@ -25,8 +25,6 @@ import Animated, {
   withDelay,
   interpolate,
   Easing,
-  FadeIn,
-  ZoomIn,
 } from 'react-native-reanimated';
 import { hapticButtonPress, hapticGameWin, hapticGameLoss } from '../utils/haptics';
 import { playWin, playLose } from '../utils/soundManager';
@@ -42,7 +40,7 @@ interface GameOverOverlayProps {
 /**
  * Animated confetti particle for wins.
  */
-function ConfettiParticle({ color, delay, startX }: { color: string; delay: number; startX: number }) {
+function ConfettiParticle({ color, delay, startX }: { readonly color: string; readonly delay: number; readonly startX: number }) {
   const progress = useSharedValue(0);
   const rotation = useSharedValue(0);
 
@@ -109,15 +107,15 @@ function ConfettiDecoration() {
     // Static confetti for web
     return (
       <View style={styles.confettiContainer} pointerEvents="none">
-        {colors.map((color, index) => (
+        {colors.map((color) => (
           <View
-            key={index}
+            key={color}
             style={[
               styles.confettiDot,
               {
                 backgroundColor: color,
-                left: `${15 + index * 12}%`,
-                top: `${10 + (index % 3) * 8}%`,
+                left: `${15 + colors.indexOf(color) * 12}%`,
+                top: `${10 + (colors.indexOf(color) % 3) * 8}%`,
               },
             ]}
           />
@@ -128,9 +126,9 @@ function ConfettiDecoration() {
 
   return (
     <View style={styles.confettiContainer} pointerEvents="none">
-      {particles.map((particle, index) => (
+      {particles.map((particle) => (
         <ConfettiParticle
-          key={index}
+          key={`${particle.color}-${particle.startX}`}
           color={particle.color}
           delay={particle.delay}
           startX={particle.startX}

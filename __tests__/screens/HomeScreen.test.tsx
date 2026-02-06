@@ -37,10 +37,10 @@ describe('HomeScreen', () => {
       expect(screen.getByText('How to Play')).toBeTruthy();
     });
 
-    it('renders the Settings button', () => {
+    it('renders the Stats button', () => {
       render(<HomeScreen />);
       
-      expect(screen.getByText('Settings')).toBeTruthy();
+      expect(screen.getByText('📊 Stats')).toBeTruthy();
     });
 
     it('renders decorative card suits', () => {

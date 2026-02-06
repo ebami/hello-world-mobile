@@ -1,6 +1,6 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { StyleSheet, View, ScrollView, Platform } from 'react-native';
-import Animated, { Layout, FadeInRight, SlideInRight } from 'react-native-reanimated';
+import Animated, { LinearTransition, SlideInRight } from 'react-native-reanimated';
 import type { Card as CardType } from '../game/types';
 import Card from './Card';
 
@@ -76,7 +76,7 @@ export default function Hand({
           return (
             <Animated.View
               key={card.id}
-              layout={useAnimations ? Layout.springify().damping(15).stiffness(100) : undefined}
+              layout={useAnimations ? LinearTransition.springify().damping(15).stiffness(100) : undefined}
               entering={useAnimations && isNewCard ? SlideInRight.delay(50).springify().damping(12) : undefined}
               style={[
                 styles.cardWrapper,

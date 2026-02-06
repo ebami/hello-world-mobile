@@ -5,7 +5,6 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  withDelay,
   interpolate,
   Easing,
   FadeInDown,

@@ -10,7 +10,8 @@
  * @module stores/statsStore
  */
 
-import { create, StateCreator } from 'zustand';
+import { create } from 'zustand';
+import type { StateCreator } from 'zustand';
 import { Platform } from 'react-native';
 import type { Difficulty } from '../game/ai';
 
@@ -164,18 +165,18 @@ const createStatsSlice: StateCreator<StatsState> = (set, get) => ({
  * Create the store - use persistence only on native platforms.
  * Web doesn't support zustand/middleware due to import.meta usage.
  */
-let useStatsStore: ReturnType<typeof create<StatsState>>;
-
-if (Platform.OS === 'web') {
-  // Web: Create store without persistence
-  useStatsStore = create<StatsState>()(createStatsSlice);
-} else {
+function createStore() {
+  if (Platform.OS === 'web') {
+    // Web: Create store without persistence
+    return create<StatsState>()(createStatsSlice);
+  }
+  
   // Native: Create store with AsyncStorage persistence
   // Dynamic import to avoid loading middleware on web
   const { persist, createJSONStorage } = require('zustand/middleware');
   const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 
-  useStatsStore = create<StatsState>()(
+  return create<StatsState>()(
     persist(createStatsSlice, {
       name: 'blackjack-stats',
       storage: createJSONStorage(() => AsyncStorage),
@@ -192,6 +193,8 @@ if (Platform.OS === 'web') {
     })
   );
 }
+
+const useStatsStore = createStore();
 
 export { useStatsStore };
 export default useStatsStore;

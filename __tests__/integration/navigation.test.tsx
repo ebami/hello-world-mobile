@@ -92,7 +92,7 @@ describe('App Navigation Integration', () => {
       
       // All buttons should still work
       expect(screen.getByText('PLAY NOW')).toBeTruthy();
-      expect(screen.getByText('Settings')).toBeTruthy();
+      expect(screen.getByText('📊 Stats')).toBeTruthy();
     });
   });
 });

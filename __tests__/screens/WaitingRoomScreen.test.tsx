@@ -35,6 +35,7 @@ describe('WaitingRoomScreen', () => {
     jest.clearAllMocks();
     useSessionStore.getState().reset();
     useSessionStore.getState().setPlayerId('player-1');
+    useSessionStore.getState().setPlayerName('player-1'); // playerName used for isHost check
   });
 
   describe('rendering', () => {

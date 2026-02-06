@@ -155,9 +155,7 @@ export async function playSound(name: SoundEffectName): Promise<void> {
     let player = loadedPlayers.get(name);
 
     // Lazy load if not preloaded
-    if (!player) {
-      player = loadSound(name) ?? undefined;
-    }
+    player ??= loadSound(name) ?? undefined;
 
     if (player) {
       // Reset to beginning if already played, then play
