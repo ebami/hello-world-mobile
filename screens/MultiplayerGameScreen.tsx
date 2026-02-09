@@ -149,12 +149,17 @@ export default function MultiplayerGameScreen({
     setShowSuitPicker(false);
   }, [pendingPlay, transport]);
 
+  const canDraw = useMemo(
+    () => gameState.deckCount > 0 || gameState.discardPile.length > 1,
+    [gameState.deckCount, gameState.discardPile.length]
+  );
+
   const handleDraw = useCallback(() => {
-    if (!isPlayerTurn || isProcessing || gameState.deckCount === 0) return;
+    if (!isPlayerTurn || isProcessing || !canDraw) return;
     setIsProcessing(true);
     transport.sendAction({ type: 'DRAW_CARD' });
     setSelectedCards([]);
-  }, [isPlayerTurn, isProcessing, gameState.deckCount, transport]);
+  }, [isPlayerTurn, isProcessing, canDraw, transport]);
 
   const handleDeclareLastCard = useCallback(() => {
     if (!canDeclareLastCard) return;
@@ -244,7 +249,7 @@ export default function MultiplayerGameScreen({
           onDraw={handleDraw}
           onPlay={handlePlay}
           onDeclareLastCard={handleDeclareLastCard}
-          canDraw={gameState.deckCount > 0}
+          canDraw={canDraw}
           canPlay={selectedCards.length > 0}
           canDeclareLastCard={canDeclareLastCard}
           isPlayerTurn={isPlayerTurn && !isProcessing}

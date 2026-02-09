@@ -245,13 +245,18 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain, onViewStat
     setShowSuitPicker(false);
   }, [pendingPlay]);
 
+  const canDraw = useMemo(
+    () => state.deck.length > 0 || state.discardPile.length > 1,
+    [state.deck.length, state.discardPile.length]
+  );
+
   const handleDraw = useCallback(() => {
-    if (!isPlayerTurn || isProcessing || state.deck.length === 0) return;
+    if (!isPlayerTurn || isProcessing || !canDraw) return;
     hapticDrawCard();
     playDrawCard();
     dispatch({ type: 'DRAW_CARD' });
     setSelectedCards([]);
-  }, [isPlayerTurn, isProcessing, state.deck.length]);
+  }, [isPlayerTurn, isProcessing, canDraw]);
 
   const handleDeclareLastCard = useCallback(() => {
     if (!canDeclareLastCard) return;
@@ -351,7 +356,7 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain, onViewStat
           onDraw={handleDraw}
           onPlay={handlePlay}
           onDeclareLastCard={handleDeclareLastCard}
-          canDraw={state.deck.length > 0}
+          canDraw={canDraw}
           canPlay={selectedCards.length > 0}
           canDeclareLastCard={canDeclareLastCard}
           isPlayerTurn={isPlayerTurn && !isProcessing}
