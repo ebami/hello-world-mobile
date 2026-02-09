@@ -28,10 +28,7 @@ export default function WaitingRoomScreen({
   onBack,
   onGameStart,
 }: WaitingRoomScreenProps) {
-  const { players, playerName, setRoom, updatePlayers, setError } = useSessionStore();
-  
-  // Derive isHost from the room's hostId and our playerName
-  const isHost = room.hostId === playerName;
+  const { players, playerName, isHost, setRoom, updatePlayers, setError } = useSessionStore();
 
   // Set up event listeners
   useEffect(() => {
