@@ -59,13 +59,13 @@ server/
 │   ├── index.ts        # Express + Socket.IO setup
 │   ├── roomManager.ts  # Room creation, joining, player tracking
 │   ├── gameHandler.ts  # Action validation, state updates, broadcasts
-│   └── types.ts        # Type definitions (mirrors game/types.ts)
+│   └── types.ts        # Re-exports from @hello-world/game-core + server-only types
 ├── package.json
 └── tsconfig.json
 ```
 
 ## Development Notes
 
-- Game logic is duplicated from `../game/` for server-side validation
-- In production, consider extracting shared logic to a common package
+- Game logic is imported from `@hello-world/game-core` (shared workspace package)
+- Build the shared package before starting: `npm run build:core` from the repo root
 - Player disconnections have a 30-second grace period for reconnection

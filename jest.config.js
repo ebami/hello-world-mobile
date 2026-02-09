@@ -18,6 +18,7 @@ module.exports = {
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    '^@hello-world/game-core$': '<rootDir>/packages/game-core/src',
   },
   testEnvironment: 'node',
   verbose: true,

@@ -2,6 +2,10 @@
   "name": "hello-world-mobile",
   "version": "1.0.0",
   "main": "index.ts",
+  "workspaces": [
+    "packages/*",
+    "server"
+  ],
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -9,7 +13,9 @@
     "web": "expo start --web",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "build:core": "npm run build -w @hello-world/game-core",
+    "dev:server": "npm run build:core && npm run dev -w hello-world-mobile-server"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

@@ -8,170 +8,21 @@ import type {
   PrivateHandPayload,
   ServerToClientEvents,
   ClientToServerEvents,
-  InterServerEvents,
-  SocketData,
-  Rank,
-} from './types';
+} from '@hello-world/game-core';
+import {
+  generateDeck,
+  shuffleDeck,
+  dealCards,
+  drawCards,
+  getValidMoves,
+  applyCardEffect,
+  isGameOver,
+  declareLastCard,
+} from '@hello-world/game-core';
+import type { InterServerEvents, SocketData } from './types';
 
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
-
-// ========== Game Logic (duplicated from game/ for server-side validation) ==========
-
-const SUITS: Card['suit'][] = ['♠', '♥', '♦', '♣'];
-const RANKS: Rank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-
-function generateDeck(): Card[] {
-  const deck: Card[] = [];
-  for (const suit of SUITS) {
-    for (const rank of RANKS) {
-      deck.push({ id: `${rank}${suit}`, rank, suit });
-    }
-  }
-  return deck;
-}
-
-function shuffleDeck(deck: Card[]): Card[] {
-  const shuffled = [...deck];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
-
-function dealCards(deck: Card[], numPlayers: number, cardsPerPlayer: number) {
-  const hands: Card[][] = Array.from({ length: numPlayers }, () => []);
-  const remaining = [...deck];
-  
-  for (let i = 0; i < cardsPerPlayer; i++) {
-    for (let p = 0; p < numPlayers; p++) {
-      const card = remaining.shift();
-      if (card) hands[p].push(card);
-    }
-  }
-  
-  return { hands, remaining };
-}
-
-function drawCards(deck: Card[], discardPile: Card[], count: number) {
-  let currentDeck = [...deck];
-  let currentDiscard = [...discardPile];
-  const drawn: Card[] = [];
-  
-  for (let i = 0; i < count; i++) {
-    if (currentDeck.length === 0) {
-      if (currentDiscard.length <= 1) break;
-      const topCard = currentDiscard.pop()!;
-      currentDeck = shuffleDeck(currentDiscard);
-      currentDiscard = [topCard];
-    }
-    const card = currentDeck.shift();
-    if (card) drawn.push(card);
-  }
-  
-  return { deck: currentDeck, discardPile: currentDiscard, drawn };
-}
-
-function isGameOver(state: GameState): { over: boolean; winner: number | null } {
-  for (let i = 0; i < state.players.length; i++) {
-    if (state.players[i].length === 0) {
-      return { over: true, winner: i };
-    }
-  }
-  
-  // Draw condition: deck empty and no valid moves
-  if (state.deck.length === 0) {
-    return { over: true, winner: null };
-  }
-  
-  return { over: false, winner: null };
-}
-
-// Simplified card matching logic
-function canPlayCard(card: Card, topCard: Card, drawPressure: number): boolean {
-  const isDrawCard = (c: Card) =>
-    c.rank === '2' || (c.rank === 'J' && (c.suit === '♠' || c.suit === '♣'));
-  const isRedJack = (c: Card) =>
-    c.rank === 'J' && (c.suit === '♥' || c.suit === '♦');
-  
-  if (drawPressure > 0) {
-    return isDrawCard(card) || isRedJack(card);
-  }
-  
-  if (topCard.rank === 'Q') return true;
-  return card.suit === topCard.suit || card.rank === topCard.rank;
-}
-
-function getDrawPressureValue(card: Card): number {
-  if (card.rank === '2') return 2;
-  if (card.rank === 'J' && (card.suit === '♠' || card.suit === '♣')) return 5;
-  return 0;
-}
-
-function applyCardEffect(state: GameState, cards: Card[]): GameState {
-  const currentHand = [...state.players[state.currentPlayer]];
-  const newDiscard = [...state.discardPile, ...cards];
-  
-  // Remove played cards from hand
-  for (const card of cards) {
-    const idx = currentHand.findIndex(c => c.id === card.id);
-    if (idx !== -1) currentHand.splice(idx, 1);
-  }
-  
-  const newPlayers = state.players.map((hand, idx) =>
-    idx === state.currentPlayer ? currentHand : hand
-  );
-  
-  const hasPlayed = [...state.hasPlayed];
-  hasPlayed[state.currentPlayer] = true;
-  
-  const lastCardCalled = [...state.lastCardCalled];
-  lastCardCalled[state.currentPlayer] = false;
-  
-  // Calculate new draw pressure
-  let newDrawPressure = state.drawPressure;
-  const lastCard = cards[cards.length - 1];
-  
-  // Red Jack shields
-  if (lastCard.rank === 'J' && (lastCard.suit === '♥' || lastCard.suit === '♦')) {
-    newDrawPressure = 0;
-  } else {
-    // Add pressure from draw cards
-    for (const card of cards) {
-      newDrawPressure += getDrawPressureValue(card);
-    }
-  }
-  
-  // Calculate direction change
-  let newDirection = state.direction;
-  const aces = cards.filter(c => c.rank === 'A').length;
-  if (aces % 2 === 1) {
-    newDirection *= -1;
-  }
-  
-  // Skip logic for Kings
-  let skips = cards.filter(c => c.rank === 'K').length;
-  
-  // Calculate next player
-  let nextPlayer = state.currentPlayer;
-  do {
-    nextPlayer = (nextPlayer + newDirection + newPlayers.length) % newPlayers.length;
-    skips--;
-  } while (skips >= 0);
-  
-  return {
-    ...state,
-    discardPile: newDiscard,
-    players: newPlayers,
-    currentPlayer: nextPlayer,
-    direction: newDirection,
-    message: `Played ${cards.map(c => c.rank + c.suit).join(', ')}`,
-    drawPressure: newDrawPressure,
-    hasPlayed,
-    lastCardCalled,
-  };
-}
 
 // ========== State Conversion ==========
 
@@ -264,9 +115,19 @@ export function handleGameAction(
       
       const topCard = gameState.discardPile[gameState.discardPile.length - 1];
       
-      // Basic validation
-      if (!canPlayCard(cards[0], topCard, gameState.drawPressure)) {
-        socket.emit('error', 'Invalid card');
+      // Validate using shared getValidMoves (full rule set)
+      const playerHand = gameState.players[playerIndex];
+      const validMoves = getValidMoves(playerHand, topCard, gameState.drawPressure);
+      
+      const isValidPlay = cards.length === 1
+        ? validMoves.singles.some(c => c.id === cards[0].id)
+        : validMoves.runs.some(run =>
+            run.length === cards.length &&
+            run.every((c, i) => c.id === cards[i].id)
+          );
+      
+      if (!isValidPlay) {
+        socket.emit('error', 'Invalid card play');
         return;
       }
       
@@ -309,34 +170,15 @@ export function handleGameAction(
     }
     
     case 'declare_last_card': {
-      // Validate declaration
-      if (gameState.currentPlayer === playerIndex) {
-        socket.emit('error', 'Cannot declare on your turn');
+      // Use the shared declareLastCard function which validates properly
+      // (supports multi-card runs, checks hasPlayed, validates timing)
+      const newState = declareLastCard(gameState, playerIndex);
+      if (newState === gameState) {
+        socket.emit('error', 'Cannot declare last card now');
         return;
       }
-      
-      if (!gameState.hasPlayed.every(Boolean)) {
-        socket.emit('error', 'Not everyone has played yet');
-        return;
-      }
-      
-      if (gameState.lastCardCalled[playerIndex]) {
-        socket.emit('error', 'Already declared');
-        return;
-      }
-      
-      const hand = gameState.players[playerIndex];
-      if (hand.length !== 1) {
-        socket.emit('error', 'Can only declare with one card');
-        return;
-      }
-      
-      const newLastCardCalled = [...gameState.lastCardCalled];
-      newLastCardCalled[playerIndex] = true;
-      
       gameState = {
-        ...gameState,
-        lastCardCalled: newLastCardCalled,
+        ...newState,
         message: `${playerName} declared LAST CARD!`,
       };
       break;

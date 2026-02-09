@@ -7,83 +7,32 @@
  * @module networking/types
  */
 
-import type { Card, PublicGameView, PrivateHandPayload, PlayerSummary } from '../game/types';
+// Re-export shared types from the common package
+export type {
+  Card,
+  PublicGameView,
+  PrivateHandPayload,
+  PlayerSummary,
+  GameActionType,
+  PlayCardsAction,
+  DrawCardAction,
+  DeclareLastCardAction,
+  GameAction,
+  RoomInfo,
+  CreateRoomOptions,
+  JoinRoomOptions,
+  ServerToClientEvents,
+  ClientToServerEvents,
+} from '@hello-world/game-core';
 
-// Re-export game types for convenience
-export type { PublicGameView, PrivateHandPayload, PlayerSummary } from '../game/types';
-
-/**
- * Action type identifiers for game actions sent through the transport layer.
- */
-export type GameActionType = 'PLAY_CARDS' | 'DRAW_CARD' | 'DECLARE_LAST_CARD';
-
-/**
- * Action to play one or more cards from the player's hand.
- */
-export interface PlayCardsAction {
-  type: 'PLAY_CARDS';
-  /** The cards to play, in order */
-  cards: Card[];
-}
-
-/**
- * Action to draw card(s) from the deck.
- * The number of cards drawn depends on current draw pressure.
- */
-export interface DrawCardAction {
-  type: 'DRAW_CARD';
-}
-
-/**
- * Action to declare "last card" before going out.
- * Must be declared before the player's turn when they have one playable card.
- */
-export interface DeclareLastCardAction {
-  type: 'DECLARE_LAST_CARD';
-  /** The player index declaring last card */
-  player: number;
-}
-
-/**
- * Union type of all possible game actions.
- */
-export type GameAction = PlayCardsAction | DrawCardAction | DeclareLastCardAction;
-
-/**
- * Information about a game room/lobby.
- */
-export interface RoomInfo {
-  /** Unique room identifier (6-character code) */
-  roomId: string;
-  /** Player ID of the room host */
-  hostId: string;
-  /** List of players in the room */
-  players: PlayerSummary[];
-  /** Maximum number of players allowed */
-  maxPlayers: number;
-  /** Whether the game has started */
-  isStarted: boolean;
-}
-
-/**
- * Options for creating a new game room.
- */
-export interface CreateRoomOptions {
-  /** Maximum players allowed (default: 4) */
-  maxPlayers?: number;
-  /** Display name for the creating player */
-  playerName: string;
-}
-
-/**
- * Options for joining an existing game room.
- */
-export interface JoinRoomOptions {
-  /** The room code to join */
-  roomId: string;
-  /** Display name for the joining player */
-  playerName: string;
-}
+import type {
+  PublicGameView,
+  PrivateHandPayload,
+  GameAction,
+  RoomInfo,
+  CreateRoomOptions,
+  JoinRoomOptions,
+} from '@hello-world/game-core';
 
 /**
  * Callback functions for transport events.
@@ -180,34 +129,4 @@ export interface GameTransport {
    * @param callbacks - Partial set of callbacks to register
    */
   setCallbacks(callbacks: Partial<TransportCallbacks>): void;
-}
-
-/**
- * Socket.IO server-to-client event definitions.
- * Used for type-safe event handling.
- */
-export interface ServerToClientEvents {
-  room_created: (room: RoomInfo) => void;
-  room_joined: (room: RoomInfo) => void;
-  room_updated: (room: RoomInfo) => void;
-  game_state_update: (state: PublicGameView) => void;
-  hand_update: (payload: PrivateHandPayload) => void;
-  player_action: (playerId: string, action: GameAction) => void;
-  game_start: (state: PublicGameView, hand: PrivateHandPayload) => void;
-  game_over: (winnerId: string | null, message: string) => void;
-  error: (message: string) => void;
-}
-
-/**
- * Socket.IO client-to-server event definitions.
- * Used for type-safe event emission.
- */
-export interface ClientToServerEvents {
-  create_room: (options: CreateRoomOptions, callback: (room: RoomInfo | null, error?: string) => void) => void;
-  join_room: (options: JoinRoomOptions, callback: (room: RoomInfo | null, error?: string) => void) => void;
-  leave_room: () => void;
-  start_game: () => void;
-  play_cards: (cards: Card[]) => void;
-  draw_card: () => void;
-  declare_last_card: () => void;
 }
