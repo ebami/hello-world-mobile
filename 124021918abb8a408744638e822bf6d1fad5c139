@@ -1,0 +1,23 @@
+docs/index.html
+  2f577d8596e3d82f 232,234-241,243,390-391,394-400,404,407-410,413-414,421-432,434-454,462-471,474,542-543
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.15",
+  "base_commit_sha": "124021918abb8a408744638e822bf6d1fad5c139",
+  "prompts": {
+    "2f577d8596e3d82f": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "45cf1d25-128e-45c2-acd7-904cd9f74a6c",
+        "model": "copilot/claude-opus-4.6"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>",
+      "messages": [],
+      "total_additions": 552,
+      "total_deletions": 487,
+      "accepted_lines": 160,
+      "overriden_lines": 0
+    }
+  }
+}
