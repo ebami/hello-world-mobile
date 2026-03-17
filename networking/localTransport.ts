@@ -24,7 +24,7 @@ import {
   declareLastCard,
   isGameOver,
 } from '../game';
-import { getComputerMove, getBotTurnDelay, type Difficulty } from '../game/ai';
+import { getComputerMove, getBotTurnDelay, shouldBotDeclareLastCard, type Difficulty } from '../game/ai';
 
 /**
  * Convert internal GameState to PublicGameView for transport compatibility.
@@ -278,7 +278,25 @@ export class LocalTransport implements GameTransport {
     const delay = getBotTurnDelay(this.difficulty);
 
     this.botTimer = setTimeout(() => {
-      if (this.state?.currentPlayer !== 1) return;
+      if (!this.state || this.state.currentPlayer !== 1) return;
+
+      // Bot declares "last card" before playing if it can go out this turn.
+      // In a real game the declaration happens between turns; here we apply it
+      // at the start of the bot's scheduled move to match the rule intent.
+      if (shouldBotDeclareLastCard(this.state, 1)) {
+        const lastCardCalled = [...this.state.lastCardCalled];
+        lastCardCalled[1] = true;
+        this.state = {
+          ...this.state,
+          lastCardCalled,
+          message: 'Bot declares last card!',
+        };
+        // Notify subscribers so the UI can show the declaration
+        const publicView = toPublicView(this.state, this.roomId);
+        const handPayload = toHandPayload(this.state, this.roomId, this.playerId);
+        this.callbacks.onStateUpdate?.(publicView);
+        this.callbacks.onHandUpdate?.(handPayload);
+      }
 
       const move = getComputerMove(this.state, this.difficulty);
 

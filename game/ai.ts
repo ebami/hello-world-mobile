@@ -3,6 +3,36 @@ import { getValidMoves } from "./gameLogic";
 
 export type Difficulty = "easy" | "medium" | "hard";
 
+/**
+ * Check whether the bot should declare "last card" before playing.
+ *
+ * Returns true when:
+ * - The bot has 1–2 cards remaining
+ * - It hasn't already declared
+ * - Every player has taken at least one turn
+ * - A valid move exists that would empty the bot's hand this turn
+ */
+export function shouldBotDeclareLastCard(
+  state: GameState,
+  botPlayer: number,
+): boolean {
+  const hand = state.players[botPlayer];
+  if (hand.length === 0 || hand.length > 2) return false;
+  if (state.lastCardCalled[botPlayer]) return false;
+  if (!state.hasPlayed.every(Boolean)) return false;
+
+  const topCard = state.discardPile[state.discardPile.length - 1];
+  if (!topCard) return false;
+
+  const validMoves = getValidMoves(hand, topCard, state.drawPressure);
+
+  if (hand.length === 1) {
+    return validMoves.singles.some((c) => c.id === hand[0].id);
+  }
+  // 2 cards – can we play them all in a single run?
+  return validMoves.runs.some((run) => run.length === hand.length);
+}
+
 // getComputerMove selects a card for the computer player based on
 // a heuristic that varies by difficulty level.
 // - Easy: 30% chance to make a random valid move, otherwise uses medium logic
@@ -25,6 +55,12 @@ export function getComputerMove(
 
   if (valid.length === 0) {
     return { draw: true };
+  }
+
+  // Highest priority: go out if possible (play all remaining cards)
+  const goOutMove = valid.find((run) => run.length === hand.length);
+  if (goOutMove) {
+    return { cards: goOutMove };
   }
 
   // Easy mode: 30% chance to pick random valid move

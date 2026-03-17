@@ -34,6 +34,7 @@ jest.mock('../../game', () => ({
 jest.mock('../../game/ai', () => ({
   getComputerMove: jest.fn(() => ({ draw: true })),
   getBotTurnDelay: jest.fn(() => 100),
+  shouldBotDeclareLastCard: jest.fn(() => false),
 }));
 
 function mockCard(): Card {
