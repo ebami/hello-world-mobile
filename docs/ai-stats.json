@@ -1,23 +1,58 @@
 {
-  "generated": "2026-03-17T17:22:23.057Z",
-  "totalCommitsWithAI": 1,
-  "totalPrompts": 1,
-  "totalAcceptedLines": 385,
-  "totalOverriddenLines": 0,
+  "generated": "2026-03-17T18:16:24.404Z",
+  "totalCommitsWithAI": 5,
+  "totalPrompts": 5,
+  "totalAcceptedLines": 1849,
+  "totalOverriddenLines": 3,
   "overallAcceptanceRate": 100,
   "models": [
+    "copilot/claude-opus-4.5",
     "copilot/claude-opus-4.6"
   ],
   "tools": [
     "github-copilot"
   ],
   "modelBreakdown": {
-    "copilot/claude-opus-4.6": {
+    "copilot/claude-opus-4.5": {
       "commits": 1,
-      "acceptedLines": 385
+      "acceptedLines": 353
+    },
+    "copilot/claude-opus-4.6": {
+      "commits": 4,
+      "acceptedLines": 1496
     }
   },
   "files": {
+    "__tests__/screens/StatsScreen.test.tsx": {
+      "aiLines": 353,
+      "totalLines": 353,
+      "aiPercent": 100
+    },
+    ".github/scripts/extract-ai-stats.js": {
+      "aiLines": 313,
+      "totalLines": 316,
+      "aiPercent": 99
+    },
+    ".github/workflows/ai-authorship-push.yml": {
+      "aiLines": 68,
+      "totalLines": 68,
+      "aiPercent": 100
+    },
+    ".github/workflows/ai-authorship-pr.yml": {
+      "aiLines": 68,
+      "totalLines": 68,
+      "aiPercent": 100
+    },
+    "docs/index.html": {
+      "aiLines": 486,
+      "totalLines": 486,
+      "aiPercent": 100
+    },
+    ".github/workflows/ai-dashboard.yml": {
+      "aiLines": 58,
+      "totalLines": 58,
+      "aiPercent": 100
+    },
     "game/ai.ts": {
       "aiLines": 35,
       "totalLines": 128,
@@ -38,9 +73,175 @@
       "models": [
         "copilot/claude-opus-4.6"
       ]
+    },
+    {
+      "date": "2026-03-17",
+      "sha": "c33beda0",
+      "subject": "feat: add AI authorship dashboard and GitHub Actions workflows",
+      "aiLines": 993,
+      "models": [
+        "copilot/claude-opus-4.6"
+      ]
+    },
+    {
+      "date": "2026-03-17",
+      "sha": "3223f9c8",
+      "subject": "fix: grant write permission for commit comments in push workflow",
+      "aiLines": 12,
+      "models": [
+        "copilot/claude-opus-4.6"
+      ]
+    },
+    {
+      "date": "2026-03-17",
+      "sha": "3b0117ce",
+      "subject": "feat: show both per-push and overall repo AI stats in reports",
+      "aiLines": 106,
+      "models": [
+        "copilot/claude-opus-4.6"
+      ]
+    },
+    {
+      "date": "2026-03-17",
+      "sha": "9a14cd2a",
+      "subject": "test: add StatsScreen tests (26 tests, 83% coverage)",
+      "aiLines": 353,
+      "models": [
+        "copilot/claude-opus-4.5"
+      ]
     }
   ],
   "commits": [
+    {
+      "sha": "9a14cd2a",
+      "shaFull": "9a14cd2aba1ba2b96ba614f2b60adfde1dd0c582",
+      "date": "2026-03-17T18:03:26Z",
+      "author": "Emmanuel Bamigbade",
+      "email": "emmanuel.bamigbade@lexisnexis.com",
+      "subject": "test: add StatsScreen tests (26 tests, 83% coverage)",
+      "models": [
+        "copilot/claude-opus-4.5"
+      ],
+      "tools": [
+        "github-copilot"
+      ],
+      "totalAccepted": 353,
+      "totalOverridden": 0,
+      "acceptanceRate": 100,
+      "files": {
+        "__tests__/screens/StatsScreen.test.tsx": {
+          "aiLines": 353,
+          "totalLines": 353,
+          "aiPercent": 100
+        }
+      },
+      "promptCount": 1
+    },
+    {
+      "sha": "3b0117ce",
+      "shaFull": "3b0117ce85715589f2409b3d2c99e9be10199ef9",
+      "date": "2026-03-17T17:41:28Z",
+      "author": "Emmanuel Bamigbade",
+      "email": "emmanuel.bamigbade@lexisnexis.com",
+      "subject": "feat: show both per-push and overall repo AI stats in reports",
+      "models": [
+        "copilot/claude-opus-4.6"
+      ],
+      "tools": [
+        "github-copilot"
+      ],
+      "totalAccepted": 106,
+      "totalOverridden": 0,
+      "acceptanceRate": 100,
+      "files": {
+        ".github/scripts/extract-ai-stats.js": {
+          "aiLines": 32,
+          "totalLines": 345,
+          "aiPercent": 9
+        },
+        ".github/workflows/ai-authorship-push.yml": {
+          "aiLines": 2,
+          "totalLines": 69,
+          "aiPercent": 3
+        },
+        ".github/workflows/ai-authorship-pr.yml": {
+          "aiLines": 2,
+          "totalLines": 69,
+          "aiPercent": 3
+        }
+      },
+      "promptCount": 1
+    },
+    {
+      "sha": "3223f9c8",
+      "shaFull": "3223f9c86ec32bf959958953544690ab54937ca0",
+      "date": "2026-03-17T17:32:57Z",
+      "author": "Emmanuel Bamigbade",
+      "email": "emmanuel.bamigbade@lexisnexis.com",
+      "subject": "fix: grant write permission for commit comments in push workflow",
+      "models": [
+        "copilot/claude-opus-4.6"
+      ],
+      "tools": [
+        "github-copilot"
+      ],
+      "totalAccepted": 12,
+      "totalOverridden": 0,
+      "acceptanceRate": 100,
+      "files": {
+        ".github/workflows/ai-authorship-push.yml": {
+          "aiLines": 1,
+          "totalLines": 68,
+          "aiPercent": 1
+        }
+      },
+      "promptCount": 1
+    },
+    {
+      "sha": "c33beda0",
+      "shaFull": "c33beda01c2d4820ae3003d900ce19f0f4640746",
+      "date": "2026-03-17T17:29:45Z",
+      "author": "Emmanuel Bamigbade",
+      "email": "emmanuel.bamigbade@lexisnexis.com",
+      "subject": "feat: add AI authorship dashboard and GitHub Actions workflows",
+      "models": [
+        "copilot/claude-opus-4.6"
+      ],
+      "tools": [
+        "github-copilot"
+      ],
+      "totalAccepted": 993,
+      "totalOverridden": 3,
+      "acceptanceRate": 100,
+      "files": {
+        ".github/workflows/ai-authorship-push.yml": {
+          "aiLines": 68,
+          "totalLines": 68,
+          "aiPercent": 100
+        },
+        ".github/workflows/ai-authorship-pr.yml": {
+          "aiLines": 68,
+          "totalLines": 68,
+          "aiPercent": 100
+        },
+        "docs/index.html": {
+          "aiLines": 486,
+          "totalLines": 486,
+          "aiPercent": 100
+        },
+        ".github/workflows/ai-dashboard.yml": {
+          "aiLines": 58,
+          "totalLines": 58,
+          "aiPercent": 100
+        },
+        ".github/scripts/extract-ai-stats.js": {
+          "aiLines": 313,
+          "totalLines": 316,
+          "aiPercent": 99
+        }
+      },
+      "promptCount": 1
+    },
     {
       "sha": "88df9462",
       "shaFull": "88df946255d1a620612d4b800427cb298b1a4613",

@@ -229,12 +229,18 @@
         </div>
       </div>
 
-      <!-- Timeline -->
+      <!-- Timeline Charts -->
       <div class="charts-row">
-        <div class="chart-card full-width">
-          <h2>AI Lines Over Time</h2>
+        <div class="chart-card">
+          <h2>📈 Cumulative AI Lines</h2>
           <div class="chart-container">
-            <canvas id="timelineChart"></canvas>
+            <canvas id="cumulativeChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h2>📊 AI Lines Per Commit</h2>
+          <div class="chart-container">
+            <canvas id="perCommitChart"></canvas>
           </div>
         </div>
       </div>
@@ -381,33 +387,91 @@
       });
     }
 
-    function renderTimeline(data) {
-      const ctx = document.getElementById('timelineChart').getContext('2d');
+    function renderCumulativeChart(data) {
+      const ctx = document.getElementById('cumulativeChart').getContext('2d');
       const tl = data.timeline || [];
+
+      // Calculate cumulative totals
+      let cumulative = 0;
+      const cumulativeData = tl.map((t) => {
+        cumulative += t.aiLines;
+        return cumulative;
+      });
 
       new Chart(ctx, {
         type: 'line',
         data: {
-          labels: tl.map((t) => t.date),
+          labels: tl.map((t) => t.date + ' ' + t.sha),
           datasets: [
             {
-              label: 'AI Lines',
-              data: tl.map((t) => t.aiLines),
-              borderColor: '#a371f7',
-              backgroundColor: 'rgba(163, 113, 247, 0.1)',
+              label: 'Total AI Lines',
+              data: cumulativeData,
+              borderColor: '#3fb950',
+              backgroundColor: 'rgba(63, 185, 80, 0.1)',
               fill: true,
               tension: 0.3,
-              pointRadius: 4,
-              pointBackgroundColor: '#a371f7',
+              pointRadius: 5,
+              pointBackgroundColor: '#3fb950',
             },
           ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: true,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: (items) => {
+                  const idx = items[0].dataIndex;
+                  return tl[idx]?.subject?.slice(0, 50) || '';
+                },
+                label: (item) => `Total: ${item.raw.toLocaleString()} AI lines`,
+              },
+            },
+          },
           scales: {
-            x: { grid: { display: false } },
+            x: { grid: { display: false }, ticks: { maxRotation: 45 } },
+            y: { beginAtZero: true, grid: { color: '#30363d' } },
+          },
+        },
+      });
+    }
+
+    function renderPerCommitChart(data) {
+      const ctx = document.getElementById('perCommitChart').getContext('2d');
+      const tl = data.timeline || [];
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: tl.map((t) => t.date + ' ' + t.sha),
+          datasets: [
+            {
+              label: 'AI Lines',
+              data: tl.map((t) => t.aiLines),
+              backgroundColor: '#a371f7',
+              borderRadius: 4,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: (items) => {
+                  const idx = items[0].dataIndex;
+                  return tl[idx]?.subject?.slice(0, 50) || '';
+                },
+                label: (item) => `+${item.raw.toLocaleString()} AI lines`,
+              },
+            },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { maxRotation: 45 } },
             y: { beginAtZero: true, grid: { color: '#30363d' } },
           },
         },
@@ -475,7 +539,8 @@
       renderStatCards(data);
       renderPieChart(data);
       renderModelChart(data);
-      renderTimeline(data);
+      renderCumulativeChart(data);
+      renderPerCommitChart(data);
       renderFileTable(data);
       renderCommitTable(data);
     }
