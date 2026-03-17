@@ -1,0 +1,23 @@
+__tests__/components/ErrorBoundary.test.tsx
+  db719e6baf3fc280 1-5,7-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.15",
+  "base_commit_sha": "c20c3212c55e69933f88c0416386898aa9c7db93",
+  "prompts": {
+    "db719e6baf3fc280": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "f079652d-61ee-4b51-87fd-fa25964c64f4",
+        "model": "copilot/gpt-5.3-codex"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>",
+      "messages": [],
+      "total_additions": 98,
+      "total_deletions": 0,
+      "accepted_lines": 97,
+      "overriden_lines": 1
+    }
+  }
+}
