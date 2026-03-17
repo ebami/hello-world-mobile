@@ -1,0 +1,68 @@
+name: AI Authorship PR Comment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  notes: read
+
+jobs:
+  ai-authorship:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch AI notes
+        run: |
+          git fetch origin refs/notes/ai:refs/notes/ai 2>/dev/null || echo "No AI notes found"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Extract AI stats for PR
+        id: stats
+        run: |
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+
+          # Generate markdown comment
+          node .github/scripts/extract-ai-stats.js \
+            --pr "${BASE_SHA}..${HEAD_SHA}" \
+            --format markdown \
+            --out /tmp/ai-comment.md
+
+          # Generate JSON for badge data
+          node .github/scripts/extract-ai-stats.js \
+            --pr "${BASE_SHA}..${HEAD_SHA}" \
+            --format json \
+            --out /tmp/ai-stats.json
+
+          # Check if there's any AI data
+          COMMIT_COUNT=$(jq '.totalCommitsWithAI' /tmp/ai-stats.json)
+          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Find existing comment
+        if: steps.stats.outputs.commit_count != '0'
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: "github-actions[bot]"
+          body-includes: "AI Authorship Report"
+
+      - name: Post or update PR comment
+        if: steps.stats.outputs.commit_count != '0'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: /tmp/ai-comment.md
+          edit-mode: replace

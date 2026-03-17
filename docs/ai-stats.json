@@ -1,0 +1,75 @@
+{
+  "generated": "2026-03-17T17:22:23.057Z",
+  "totalCommitsWithAI": 1,
+  "totalPrompts": 1,
+  "totalAcceptedLines": 385,
+  "totalOverriddenLines": 0,
+  "overallAcceptanceRate": 100,
+  "models": [
+    "copilot/claude-opus-4.6"
+  ],
+  "tools": [
+    "github-copilot"
+  ],
+  "modelBreakdown": {
+    "copilot/claude-opus-4.6": {
+      "commits": 1,
+      "acceptedLines": 385
+    }
+  },
+  "files": {
+    "game/ai.ts": {
+      "aiLines": 35,
+      "totalLines": 128,
+      "aiPercent": 27
+    },
+    "networking/localTransport.ts": {
+      "aiLines": 20,
+      "totalLines": 391,
+      "aiPercent": 5
+    }
+  },
+  "timeline": [
+    {
+      "date": "2026-03-17",
+      "sha": "88df9462",
+      "subject": "fix: AI bot now declares last card before going out",
+      "aiLines": 385,
+      "models": [
+        "copilot/claude-opus-4.6"
+      ]
+    }
+  ],
+  "commits": [
+    {
+      "sha": "88df9462",
+      "shaFull": "88df946255d1a620612d4b800427cb298b1a4613",
+      "date": "2026-03-17T16:00:05Z",
+      "author": "Emmanuel Bamigbade",
+      "email": "emmanuel.bamigbade@lexisnexis.com",
+      "subject": "fix: AI bot now declares last card before going out",
+      "models": [
+        "copilot/claude-opus-4.6"
+      ],
+      "tools": [
+        "github-copilot"
+      ],
+      "totalAccepted": 385,
+      "totalOverridden": 0,
+      "acceptanceRate": 100,
+      "files": {
+        "game/ai.ts": {
+          "aiLines": 35,
+          "totalLines": 128,
+          "aiPercent": 27
+        },
+        "networking/localTransport.ts": {
+          "aiLines": 20,
+          "totalLines": 391,
+          "aiPercent": 5
+        }
+      },
+      "promptCount": 1
+    }
+  ]
+}

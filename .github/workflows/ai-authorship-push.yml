@@ -1,0 +1,68 @@
+name: AI Authorship Push Report
+
+on:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  ai-push-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch AI notes
+        run: |
+          git fetch origin refs/notes/ai:refs/notes/ai 2>/dev/null || echo "No AI notes found"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check for AI authorship in push
+        id: check
+        run: |
+          # Check if HEAD commit has an AI note
+          if git notes --ref=refs/notes/ai show HEAD 2>/dev/null; then
+            echo "has_ai=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_ai=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate report
+        if: steps.check.outputs.has_ai == 'true'
+        id: report
+        run: |
+          # Get the pushed commits range
+          BEFORE=${{ github.event.before }}
+          AFTER=${{ github.event.after }}
+
+          # Generate markdown
+          node .github/scripts/extract-ai-stats.js \
+            --pr "${BEFORE}..${AFTER}" \
+            --format markdown \
+            --out /tmp/ai-report.md
+
+          # Also output as step summary
+          cat /tmp/ai-report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Post commit comment
+        if: steps.check.outputs.has_ai == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/ai-report.md', 'utf-8');
+
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: body,
+            });

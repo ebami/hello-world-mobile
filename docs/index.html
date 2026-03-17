@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Authorship Dashboard — Black Jack Black</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --ai: #a371f7;
+      --human: #3fb950;
+      --warn: #d29922;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .header h1 span { color: var(--ai); }
+
+    .header p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      text-align: center;
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .stat-card .value.ai-color { color: var(--ai); }
+    .stat-card .value.human-color { color: var(--human); }
+
+    .stat-card .label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .charts-row { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+
+    .chart-card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--muted);
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      max-height: 300px;
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    th {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 600;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bar-cell {
+      position: relative;
+      min-width: 120px;
+    }
+
+    .bar-bg {
+      position: absolute;
+      top: 50%;
+      left: 0.75rem;
+      transform: translateY(-50%);
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+      width: calc(100% - 1.5rem);
+    }
+
+    .bar-fill {
+      position: absolute;
+      top: 50%;
+      left: 0.75rem;
+      transform: translateY(-50%);
+      height: 6px;
+      border-radius: 3px;
+      background: var(--ai);
+    }
+
+    .bar-text {
+      position: relative;
+      z-index: 1;
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+
+    .model-badge {
+      display: inline-block;
+      background: rgba(163, 113, 247, 0.15);
+      color: var(--ai);
+      border: 1px solid rgba(163, 113, 247, 0.3);
+      border-radius: 12px;
+      padding: 0.15rem 0.6rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--muted);
+    }
+
+    .empty-state h2 { margin-bottom: 0.5rem; }
+
+    .footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-top: 3rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🤖 <span>AI Authorship</span> Dashboard</h1>
+    <p id="subtitle">Loading...</p>
+  </div>
+
+  <div id="content">
+    <div class="empty-state" id="empty-state" style="display: none">
+      <h2>No AI authorship data found</h2>
+      <p>Push commits with git-ai notes to populate this dashboard.</p>
+    </div>
+
+    <div id="dashboard" style="display: none">
+      <!-- Top-level stat cards -->
+      <div class="stats-grid" id="stats-grid"></div>
+
+      <!-- Charts row -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h2>Human vs AI Split</h2>
+          <div class="chart-container">
+            <canvas id="pieChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h2>Models Used</h2>
+          <div class="chart-container">
+            <canvas id="modelChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="charts-row">
+        <div class="chart-card full-width">
+          <h2>AI Lines Over Time</h2>
+          <div class="chart-container">
+            <canvas id="timelineChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- File table -->
+      <div class="chart-card" style="margin-bottom: 2rem">
+        <h2>File Breakdown</h2>
+        <table id="file-table">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>AI Lines</th>
+              <th>Total Lines</th>
+              <th>AI %</th>
+              <th style="min-width: 150px"></th>
+            </tr>
+          </thead>
+          <tbody id="file-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Commit table -->
+      <div class="chart-card">
+        <h2>Commits with AI Assistance</h2>
+        <table id="commit-table">
+          <thead>
+            <tr>
+              <th>SHA</th>
+              <th>Date</th>
+              <th>Author</th>
+              <th>Subject</th>
+              <th>Model</th>
+              <th>AI Lines</th>
+            </tr>
+          </thead>
+          <tbody id="commit-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Generated by <strong>ai-authorship-tracker</strong> •
+    <span id="generated-date"></span>
+  </div>
+
+  <script>
+    // Chart.js dark theme defaults
+    Chart.defaults.color = '#8b949e';
+    Chart.defaults.borderColor = '#30363d';
+
+    async function loadData() {
+      try {
+        const res = await fetch('./ai-stats.json');
+        if (!res.ok) throw new Error('No data');
+        return await res.json();
+      } catch {
+        return null;
+      }
+    }
+
+    function renderStatCards(data) {
+      const grid = document.getElementById('stats-grid');
+      const cards = [
+        { value: data.totalCommitsWithAI, label: 'Commits with AI', cls: 'ai-color' },
+        { value: data.totalAcceptedLines.toLocaleString(), label: 'AI Lines Accepted', cls: 'ai-color' },
+        { value: `${data.overallAcceptanceRate}%`, label: 'Acceptance Rate', cls: '' },
+        { value: data.models.length, label: 'Models Used', cls: '' },
+        { value: data.totalPrompts, label: 'AI Prompts', cls: 'ai-color' },
+        { value: data.totalOverriddenLines, label: 'Lines Overridden', cls: 'human-color' },
+      ];
+
+      grid.innerHTML = cards
+        .map(
+          (c) => `
+        <div class="stat-card">
+          <div class="value ${c.cls}">${c.value}</div>
+          <div class="label">${c.label}</div>
+        </div>`,
+        )
+        .join('');
+    }
+
+    function renderPieChart(data) {
+      const ctx = document.getElementById('pieChart').getContext('2d');
+      const ai = data.totalAcceptedLines;
+      const overridden = data.totalOverriddenLines;
+
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['AI Accepted', 'Human Overridden'],
+          datasets: [
+            {
+              data: [ai, overridden || 1], // at least 1 so chart renders
+              backgroundColor: ['#a371f7', '#3fb950'],
+              borderColor: ['#a371f7', '#3fb950'],
+              borderWidth: 0,
+              hoverOffset: 8,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          cutout: '65%',
+          plugins: {
+            legend: { position: 'bottom' },
+          },
+        },
+      });
+    }
+
+    function renderModelChart(data) {
+      const ctx = document.getElementById('modelChart').getContext('2d');
+      const models = Object.keys(data.modelBreakdown);
+      const lines = models.map((m) => data.modelBreakdown[m].acceptedLines);
+      const colors = ['#a371f7', '#58a6ff', '#d29922', '#f778ba', '#3fb950'];
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: models.map((m) => m.split('/').pop()),
+          datasets: [
+            {
+              label: 'Accepted Lines',
+              data: lines,
+              backgroundColor: colors.slice(0, models.length),
+              borderRadius: 4,
+              barThickness: 40,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          indexAxis: 'y',
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { display: false } },
+          },
+        },
+      });
+    }
+
+    function renderTimeline(data) {
+      const ctx = document.getElementById('timelineChart').getContext('2d');
+      const tl = data.timeline || [];
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: tl.map((t) => t.date),
+          datasets: [
+            {
+              label: 'AI Lines',
+              data: tl.map((t) => t.aiLines),
+              borderColor: '#a371f7',
+              backgroundColor: 'rgba(163, 113, 247, 0.1)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4,
+              pointBackgroundColor: '#a371f7',
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { beginAtZero: true, grid: { color: '#30363d' } },
+          },
+        },
+      });
+    }
+
+    function renderFileTable(data) {
+      const tbody = document.getElementById('file-tbody');
+      const entries = Object.entries(data.files).sort(
+        (a, b) => b[1].aiPercent - a[1].aiPercent,
+      );
+
+      tbody.innerHTML = entries
+        .map(
+          ([file, s]) => `
+        <tr>
+          <td><code>${file}</code></td>
+          <td>${s.aiLines}</td>
+          <td>${s.totalLines}</td>
+          <td><strong>${s.aiPercent}%</strong></td>
+          <td class="bar-cell">
+            <div class="bar-bg"></div>
+            <div class="bar-fill" style="width: calc((100% - 1.5rem) * ${s.aiPercent / 100})"></div>
+          </td>
+        </tr>`,
+        )
+        .join('');
+    }
+
+    function renderCommitTable(data) {
+      const tbody = document.getElementById('commit-tbody');
+
+      tbody.innerHTML = data.commits
+        .map(
+          (c) => `
+        <tr>
+          <td><code>${c.sha}</code></td>
+          <td>${c.date?.split('T')[0] || ''}</td>
+          <td>${c.author}</td>
+          <td>${c.subject}</td>
+          <td>${c.models.map((m) => `<span class="model-badge">${m.split('/').pop()}</span>`).join(' ')}</td>
+          <td>${c.totalAccepted}</td>
+        </tr>`,
+        )
+        .join('');
+    }
+
+    async function init() {
+      const data = await loadData();
+      const subtitle = document.getElementById('subtitle');
+      const genDate = document.getElementById('generated-date');
+
+      if (!data || data.totalCommitsWithAI === 0) {
+        document.getElementById('empty-state').style.display = 'block';
+        subtitle.textContent = 'No data available yet';
+        genDate.textContent = new Date().toISOString().split('T')[0];
+        return;
+      }
+
+      subtitle.textContent = `${data.totalCommitsWithAI} commits tracked • ${data.totalAcceptedLines} AI lines • ${data.models.join(', ')}`;
+      genDate.textContent = data.generated?.split('T')[0] || new Date().toISOString().split('T')[0];
+
+      document.getElementById('dashboard').style.display = 'block';
+
+      renderStatCards(data);
+      renderPieChart(data);
+      renderModelChart(data);
+      renderTimeline(data);
+      renderFileTable(data);
+      renderCommitTable(data);
+    }
+
+    init();
+  </script>
+</body>
+</html>
