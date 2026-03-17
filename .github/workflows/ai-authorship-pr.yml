@@ -33,10 +33,11 @@ jobs:
           BASE_SHA=${{ github.event.pull_request.base.sha }}
           HEAD_SHA=${{ github.event.pull_request.head.sha }}
 
-          # Generate markdown comment
+          # Generate markdown comment (this PR + overall repo)
           node .github/scripts/extract-ai-stats.js \
             --pr "${BASE_SHA}..${HEAD_SHA}" \
             --format markdown \
+            --overall \
             --out /tmp/ai-comment.md
 
           # Generate JSON for badge data

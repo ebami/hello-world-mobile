@@ -43,10 +43,11 @@ jobs:
           BEFORE=${{ github.event.before }}
           AFTER=${{ github.event.after }}
 
-          # Generate markdown
+          # Generate combined markdown (this push + overall repo)
           node .github/scripts/extract-ai-stats.js \
             --pr "${BEFORE}..${AFTER}" \
             --format markdown \
+            --overall \
             --out /tmp/ai-report.md
 
           # Also output as step summary
