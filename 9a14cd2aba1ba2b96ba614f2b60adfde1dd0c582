@@ -1,0 +1,23 @@
+__tests__/screens/StatsScreen.test.tsx
+  33c89a1610d67109 1-353
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.15",
+  "base_commit_sha": "9a14cd2aba1ba2b96ba614f2b60adfde1dd0c582",
+  "prompts": {
+    "33c89a1610d67109": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "abc9df31-733e-4abf-b3ef-cfb62ed19322",
+        "model": "copilot/claude-opus-4.5"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>",
+      "messages": [],
+      "total_additions": 659,
+      "total_deletions": 26,
+      "accepted_lines": 353,
+      "overriden_lines": 0
+    }
+  }
+}
