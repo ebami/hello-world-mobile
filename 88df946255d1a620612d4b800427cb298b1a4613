@@ -1,0 +1,25 @@
+game/ai.ts
+  2f577d8596e3d82f 6-35,60-63,65
+networking/localTransport.ts
+  2f577d8596e3d82f 27,281-299
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "88df946255d1a620612d4b800427cb298b1a4613",
+  "prompts": {
+    "2f577d8596e3d82f": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "45cf1d25-128e-45c2-acd7-904cd9f74a6c",
+        "model": "copilot/claude-opus-4.6"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>",
+      "messages": [],
+      "total_additions": 877,
+      "total_deletions": 822,
+      "accepted_lines": 385,
+      "overriden_lines": 0
+    }
+  }
+}
