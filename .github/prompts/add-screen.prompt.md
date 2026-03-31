@@ -94,7 +94,7 @@ if (currentScreen === 'my-screen') {
 
 ### 4. Write a test file at `__tests__/screens/MyScreen.test.tsx`
 
-- Import `render`, `fireEvent`, and helpers from `../__tests__/test-utils` (not `@testing-library/react-native` directly).
+- Import `render`, `fireEvent`, and helpers from `../test-utils` (not `@testing-library/react-native` directly).
 - Organize with `describe('MyScreen', () => { describe('rendering', ...) describe('interactions', ...) })`.
 - Test: renders expected elements, back button calls `onBack`.
 - If the screen uses `useSessionStore`, call `useSessionStore.getState().reset()` in `beforeEach`.
