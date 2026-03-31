@@ -122,7 +122,18 @@ export interface TransportCallbacks {
 }
 ```
 
-### 5. Wire up in the screen
+### 5. Add the optional method to `GameTransport` (`networking/types.ts`)
+
+Screens should keep depending on `GameTransport`, not on `SocketTransport` directly. Add the new action as an optional transport method:
+
+```ts
+export interface GameTransport {
+  // ...existing methods...
+  myNewAction?(payload: MyEventPayload): Promise<MyResult>;
+}
+```
+
+### 6. Wire up in the screen
 
 In the screen that needs this feature (e.g., `WaitingRoomScreen`, `MultiplayerGameScreen`):
 
@@ -138,27 +149,32 @@ useEffect(() => {
 // To send the event:
 const handleAction = async () => {
   hapticButtonPress();
+  if (!transport.myNewAction) {
+    Alert.alert('Error', 'This action is not available in the current play mode');
+    return;
+  }
+
   try {
-    await (transport as SocketTransport).myNewAction(payload);
+    await transport.myNewAction(payload);
   } catch (err) {
     Alert.alert('Error', err instanceof Error ? err.message : 'Failed');
   }
 };
 ```
 
-**Note:** Cast to `SocketTransport` only in multiplayer screens — single-player screens use `LocalTransport` which will not have this method.
+**Note:** Do not cast to `SocketTransport` in UI code. Keep screens transport-agnostic by extending `GameTransport`; `LocalTransport` can simply omit the optional method when the feature is multiplayer-only.
 
-### 6. Update `LocalTransport` if needed
+### 7. Update `LocalTransport` if needed
 
 If the feature has a single-player analogue (e.g., a practice mode rematch), add the corresponding behaviour to `networking/localTransport.ts`. If it's multiplayer-only, document that the method is not available on `LocalTransport` with a comment.
 
-### 7. Update `useSessionStore` if the feature introduces new lobby/session metadata
+### 8. Update `useSessionStore` if the feature introduces new lobby/session metadata
 
 `sessionStore` is for connection/room metadata only — not game state. If the feature adds persistent lobby data (e.g., player ready flags), add a field to `SessionState` and a setter action.
 
 Do **not** add live game state (card arrays, current player) to the store.
 
-### 8. Write tests
+### 9. Write tests
 
 **Server handler test** (`server/src/gameHandler.test.ts`):
 ```ts

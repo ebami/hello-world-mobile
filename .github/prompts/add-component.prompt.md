@@ -30,8 +30,12 @@ Create a new UI component for the hello-world-mobile app. Follow the project's a
 import React, { useEffect } from 'react';
 import { StyleSheet, Platform } from 'react-native';
 import Animated, {
+  FadeInDown,
+  Layout,
+  interpolate,
   useSharedValue,
   useAnimatedStyle,
+  withRepeat,
   withSpring,
   withTiming,
   Easing,
@@ -40,9 +44,10 @@ import Animated, {
 interface MyComponentProps {
   readonly active?: boolean;
   readonly onPress?: () => void;
+  readonly testID?: string;
 }
 
-export default function MyComponent({ active = false, onPress }: MyComponentProps) {
+export default function MyComponent({ active = false, onPress, testID }: MyComponentProps) {
   const scale = useSharedValue(1);
 
   useEffect(() => {
@@ -56,7 +61,7 @@ export default function MyComponent({ active = false, onPress }: MyComponentProp
   }));
 
   return (
-    <Animated.View style={[styles.container, animatedStyle]}>
+    <Animated.View testID={testID} style={[styles.container, animatedStyle]}>
       {/* content */}
     </Animated.View>
   );
@@ -80,6 +85,8 @@ translateY.value = withSpring(selected ? -12 : 0, { damping: 15, stiffness: 300 
 
 ### 3D card flip
 ```ts
+// Import `interpolate` from react-native-reanimated when using this recipe
+
 // withTiming for predictable duration
 flipProgress.value = withTiming(faceDown ? 0 : 1, {
   duration: 300,
@@ -108,6 +115,8 @@ const backStyle = useAnimatedStyle(() => ({
 
 ### Fade + slide entering animation (new card drawn)
 ```tsx
+import { FadeInDown } from 'react-native-reanimated';
+
 // Guard with Platform check — entering/layout animations are not supported on web
 <Animated.View
   entering={Platform.OS !== 'web' ? FadeInDown.delay(entryDelay).duration(300) : undefined}
@@ -123,6 +132,8 @@ import { Layout } from 'react-native-reanimated';
 
 ### Pulse glow (draw pressure indicator)
 ```ts
+import { withRepeat } from 'react-native-reanimated';
+
 const glowOpacity = useSharedValue(0);
 
 useEffect(() => {
