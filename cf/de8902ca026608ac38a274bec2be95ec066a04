@@ -1,0 +1,64 @@
+server/src/gameHandler.ts
+  s_755438b5ce44c9::t_b454e755b75996 8,36
+  s_755438b5ce44c9::t_7bca16b8e2a75c 71,73,83,108,112-116,118-146,148-149,151,156-169
+__tests__/game/ai.test.ts
+  s_755438b5ce44c9::t_5854c27c08eb23 5-29,31
+  s_755438b5ce44c9::t_9537789b0efde7 30
+  s_755438b5ce44c9::t_eb513c4165d889 32-33
+docs/residual-review-findings/02-server-authoritative-card-commands.md
+  s_755438b5ce44c9::t_d4ddf24f9a9cc8 1-49
+game/ai.ts
+  s_755438b5ce44c9::t_8c518798c0a20e 55,95
+  s_755438b5ce44c9::t_106f9c9e6b4d81 1,6-29
+  s_755438b5ce44c9::t_9f6bb4c1b2191c 30-33
+  s_755438b5ce44c9::t_2cf2088d8fb727 56-58
+  s_755438b5ce44c9::t_2ac412441d5cf4 92-94
+  s_755438b5ce44c9::t_edb13ee396182a 96-98
+  s_755438b5ce44c9::t_9c8a3c322df990 59-60,81,87-91,99-100,110,116,149,157,161
+packages/game-core/src/gameLogic.ts
+  s_755438b5ce44c9::t_396e38fb27075d 3
+  s_755438b5ce44c9::t_9bfa619668d6d3 35,45-47,52,190-194,263-266,321-322,367-368,434
+server/src/gameHandler.test.ts
+  s_755438b5ce44c9::t_6ade4f0b4c9c1d 6-8
+  s_755438b5ce44c9::t_52d4b62745e8a0 324-459
+server/src/validation/schemas.ts
+  s_755438b5ce44c9::t_2bc32c817b1176 15
+  s_755438b5ce44c9::t_6c1cbce9609ffa 66-69,71-79,84
+__tests__/game/gameLogic.test.ts
+  s_755438b5ce44c9::t_f0eee1fe7fb89e 13-52,54,56-57,59,62
+  s_755438b5ce44c9::t_ef1ffa07e25f1f 53
+  s_755438b5ce44c9::t_b732d9ad4c5bce 55
+  s_755438b5ce44c9::t_82b0c2481ee497 58
+  s_755438b5ce44c9::t_c6750347347172 60-61
+  s_755438b5ce44c9::t_fb7c25cf13d3a5 63-64
+__tests__/networking/socketTransport.test.ts
+  s_755438b5ce44c9::t_46ee27605c6f4d 288-298,300-310
+networking/localTransport.ts
+  s_755438b5ce44c9::t_9137154ff79503 44,85,200,308-312,324
+networking/socketTransport.ts
+  s_755438b5ce44c9::t_5402523274370a 201-206
+packages/game-core/src/types.ts
+  s_755438b5ce44c9::t_54d48c56e2992b 57-62,84-85,137-153,201
+screens/GameScreen.tsx
+  s_755438b5ce44c9::t_6b99c48200f15c 43,63,73,139-142,168,240-243,322-324
+screens/MultiplayerGameScreen.tsx
+  s_755438b5ce44c9::t_68eebd0ef085dc 51-54,142-145,147,213-215
+server/src/socketServer.ts
+  s_755438b5ce44c9::t_4db925f03afb92 23,126,129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "cfde8902ca026608ac38a274bec2be95ec066a04",
+  "prompts": {},
+  "sessions": {
+    "s_755438b5ce44c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5c6eabb1-c6a5-480d-b76e-169d127a0389",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
