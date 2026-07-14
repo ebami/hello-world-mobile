@@ -153,7 +153,7 @@ export class SocketTransport implements GameTransport {
 
       this.socket.emit('create_room', options, (room, error) => {
         if (error || !room) {
-          reject(new Error(error ?? 'Failed to create room'));
+          reject(new Error(error?.message ?? 'Failed to create room'));
         } else {
           resolve(room);
         }
@@ -172,8 +172,8 @@ export class SocketTransport implements GameTransport {
       console.log('[SocketTransport] Sending join_room:', options);
       this.socket.emit('join_room', options, (room, error) => {
         if (error || !room) {
-          console.log('[SocketTransport] joinRoom error:', error);
-          reject(new Error(error ?? 'Failed to join room'));
+          console.log('[SocketTransport] joinRoom error:', error?.code);
+          reject(new Error(error?.message ?? 'Failed to join room'));
         } else {
           console.log('[SocketTransport] joinRoom success:', room);
           resolve(room);

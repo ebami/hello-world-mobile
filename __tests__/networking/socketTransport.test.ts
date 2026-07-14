@@ -257,15 +257,19 @@ describe('SocketTransport', () => {
 
     it('should reject when join fails', async () => {
       mockSocket.emit.mockImplementation(
-        (event: string, _data: unknown, callback: (room: null, error: string) => void) => {
+        (
+          event: string,
+          _data: unknown,
+          callback: (room: null, error: { code: string; message: string }) => void,
+        ) => {
           if (event === 'join_room') {
-            callback(null, 'Room not found');
+            callback(null, { code: 'ROOM_NOT_FOUND', message: 'Room not found' });
           }
         }
       );
 
       await expect(
-        transport.joinRoom({ roomCode: 'INVALID', playerName: 'Bob' })
+        transport.joinRoom({ roomId: 'INVALID', playerName: 'Bob' })
       ).rejects.toThrow('Room not found');
     });
   });

@@ -5,6 +5,8 @@
  * @module @hello-world/game-core/types
  */
 
+import type { ProtocolError } from "./protocol";
+
 // ========== Core Card Types ==========
 
 export type Suit = "♠" | "♥" | "♦" | "♣";
@@ -163,11 +165,11 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   create_room: (
     options: CreateRoomOptions,
-    callback: (room: RoomInfo | null, error?: string) => void,
+    callback: (room: RoomInfo | null, error?: ProtocolError) => void,
   ) => void;
   join_room: (
     options: JoinRoomOptions,
-    callback: (room: RoomInfo | null, error?: string) => void,
+    callback: (room: RoomInfo | null, error?: ProtocolError) => void,
   ) => void;
   leave_room: () => void;
   start_game: () => void;

@@ -1,0 +1,267 @@
+/**
+ * @fileoverview Real Socket.IO client/server integration tests for runtime
+ * payload validation and crash containment (MFP-01).
+ *
+ * These tests connect an actual socket.io-client to a server bound on an
+ * ephemeral port and fire malformed / malicious events. The core assertion in
+ * every case is the same: the server never crashes and stays responsive to a
+ * subsequent valid request.
+ */
+
+import type { AddressInfo } from 'net';
+import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
+import { createSocketServer, type SocketServer } from './socketServer';
+import { roomManager } from './roomManager';
+
+let server: SocketServer;
+let url: string;
+const openClients: ClientSocket[] = [];
+
+beforeAll((done) => {
+  server = createSocketServer();
+  server.httpServer.listen(0, () => {
+    const { port } = server.httpServer.address() as AddressInfo;
+    url = `http://localhost:${port}`;
+    done();
+  });
+});
+
+afterAll((done) => {
+  // Socket.IO v4's Server.close() also closes the underlying HTTP server, so a
+  // single close is sufficient (and avoids a redundant second close whose
+  // ERR_SERVER_NOT_RUNNING would otherwise be silently discarded).
+  server.io.close(() => done());
+});
+
+beforeEach(() => {
+  (roomManager as unknown as { rooms: Map<string, unknown> }).rooms.clear();
+});
+
+afterEach(() => {
+  while (openClients.length > 0) {
+    openClients.pop()?.disconnect();
+  }
+});
+
+// ---- helpers -------------------------------------------------------------
+
+function connect(): Promise<ClientSocket> {
+  return new Promise((resolve, reject) => {
+    const client = ioClient(url, {
+      transports: ['websocket'],
+      forceNew: true,
+      reconnection: false,
+    });
+    openClients.push(client);
+    client.on('connect', () => resolve(client));
+    client.on('connect_error', reject);
+  });
+}
+
+interface AckResult {
+  room: unknown;
+  error: { code?: string; message?: string } | undefined;
+}
+
+/** Emit an event with a payload and await the acknowledgement callback. */
+function emitWithAck(
+  client: ClientSocket,
+  event: string,
+  payload: unknown,
+): Promise<AckResult> {
+  return new Promise((resolve) => {
+    client.emit(event, payload, (room: unknown, error: AckResult['error']) =>
+      resolve({ room, error }),
+    );
+  });
+}
+
+/** Wait for the next server `error` event on this client. */
+function nextError(client: ClientSocket): Promise<string> {
+  return new Promise((resolve) => client.once('error', resolve));
+}
+
+const validCreate = { playerName: 'Alice' };
+
+/** Prove the server is still alive and answering after a bad request. */
+async function expectServerResponsive(client: ClientSocket): Promise<void> {
+  const { room, error } = await emitWithAck(client, 'create_room', validCreate);
+  expect(error).toBeUndefined();
+  expect(room).toMatchObject({ hostId: 'Alice' });
+}
+
+// ---- tests ---------------------------------------------------------------
+
+describe('Socket.IO runtime validation (MFP-01)', () => {
+  it('rejects create_room with a null payload without crashing', async () => {
+    const client = await connect();
+
+    const { room, error } = await emitWithAck(client, 'create_room', null);
+
+    expect(room).toBeNull();
+    expect(error?.code).toBe('INVALID_PAYLOAD');
+    await expectServerResponsive(client);
+  });
+
+  it('rejects create_room for various malformed primitives', async () => {
+    const client = await connect();
+
+    for (const bad of ['a string', 42, ['array'], true]) {
+      const { room, error } = await emitWithAck(client, 'create_room', bad);
+      expect(room).toBeNull();
+      expect(error?.code).toBe('INVALID_PAYLOAD');
+    }
+
+    await expectServerResponsive(client);
+  });
+
+  it('does not crash when the acknowledgement callback is omitted', async () => {
+    const client = await connect();
+
+    // Valid payload, but no callback supplied.
+    client.emit('create_room', validCreate);
+    // Malformed payload, also no callback.
+    client.emit('create_room', null);
+
+    // A fresh, well-formed request with a callback still succeeds.
+    await expectServerResponsive(client);
+  });
+
+  it('does not crash when the acknowledgement callback is falsified', async () => {
+    const client = await connect();
+
+    // A non-function where the ack is expected is treated as data (no ack).
+    client.emit('create_room', validCreate, 'not-a-function' as unknown as () => void);
+
+    await expectServerResponsive(client);
+  });
+
+  it('rejects join_room with a malformed room code', async () => {
+    const client = await connect();
+
+    const { room, error } = await emitWithAck(client, 'join_room', {
+      roomId: 'lower!!',
+      playerName: 'Bob',
+    });
+
+    expect(room).toBeNull();
+    expect(error?.code).toBe('INVALID_PAYLOAD');
+    await expectServerResponsive(client);
+  });
+
+  it('returns ROOM_NOT_FOUND for a well-formed but unknown room code', async () => {
+    const client = await connect();
+
+    const { room, error } = await emitWithAck(client, 'join_room', {
+      roomId: 'ZZZZZZ',
+      playerName: 'Bob',
+    });
+
+    expect(room).toBeNull();
+    expect(error?.code).toBe('ROOM_NOT_FOUND');
+  });
+
+  it('rejects empty and oversized player names', async () => {
+    const client = await connect();
+
+    const empty = await emitWithAck(client, 'create_room', { playerName: '   ' });
+    expect(empty.error?.code).toBe('INVALID_PAYLOAD');
+
+    const huge = await emitWithAck(client, 'create_room', {
+      playerName: 'x'.repeat(500),
+    });
+    expect(huge.error?.code).toBe('INVALID_PAYLOAD');
+
+    await expectServerResponsive(client);
+  });
+
+  it('rejects invalid maxPlayers (negative, fractional, NaN, excessive)', async () => {
+    const client = await connect();
+
+    for (const maxPlayers of [-1, 2.5, NaN, 999]) {
+      const { room, error } = await emitWithAck(client, 'create_room', {
+        playerName: 'Alice',
+        maxPlayers,
+      });
+      expect(room).toBeNull();
+      expect(error?.code).toBe('INVALID_PAYLOAD');
+    }
+
+    await expectServerResponsive(client);
+  });
+
+  it('rejects unknown fields (strict schemas)', async () => {
+    const client = await connect();
+
+    const { room, error } = await emitWithAck(client, 'create_room', {
+      playerName: 'Alice',
+      isAdmin: true,
+    });
+
+    expect(room).toBeNull();
+    expect(error?.code).toBe('INVALID_PAYLOAD');
+    await expectServerResponsive(client);
+  });
+
+  it('rejects malformed play_cards via the error event', async () => {
+    const client = await connect();
+
+    const errorPromise = nextError(client);
+    client.emit('play_cards', [{ id: 1, rank: 'ZZ', suit: 'purple' }]);
+
+    const message = await errorPromise;
+    // Stable, safe display message — and it must not echo the malformed values.
+    expect(message).toBe('Invalid play_cards request.');
+    expect(message).not.toMatch(/ZZ|purple/);
+    await expectServerResponsive(client);
+  });
+
+  it('does not crash on no-payload events sent with junk arguments or a falsified ack', async () => {
+    const client = await connect();
+
+    // leave_room / start_game / draw_card / declare_last_card carry no payload;
+    // a hostile client can still fire them with extra positional args or a
+    // non-function where an ack would go. None of that may crash the process.
+    const junkByEvent: Array<[string, unknown[]]> = [
+      ['leave_room', [{ junk: true }, 'not-a-function']],
+      ['start_game', [42]],
+      ['draw_card', [['x'], null]],
+      ['declare_last_card', [{ a: 1 }, true]],
+    ];
+    for (const [event, args] of junkByEvent) {
+      client.emit(event, ...args);
+    }
+
+    await expectServerResponsive(client);
+  });
+
+  it('supports the full valid create + join flow', async () => {
+    const host = await connect();
+    const { room } = await emitWithAck(host, 'create_room', {
+      playerName: 'Alice',
+      maxPlayers: 2,
+    });
+    const roomId = (room as { roomId: string }).roomId;
+    expect(roomId).toMatch(/^[A-Z0-9]{6}$/);
+
+    const guest = await connect();
+    const joined = await emitWithAck(guest, 'join_room', {
+      roomId,
+      playerName: 'Bob',
+    });
+    expect(joined.error).toBeUndefined();
+    expect((joined.room as { players: unknown[] }).players).toHaveLength(2);
+  });
+
+  it('stays responsive after a burst of malformed requests', async () => {
+    const client = await connect();
+
+    const bad: unknown[] = [null, undefined, 0, '', [], { nope: true }];
+    for (const payload of bad) {
+      // Interleave a valid request after each invalid one.
+      const invalid = await emitWithAck(client, 'create_room', payload);
+      expect(invalid.error?.code).toBe('INVALID_PAYLOAD');
+      await expectServerResponsive(client);
+    }
+  });
+});

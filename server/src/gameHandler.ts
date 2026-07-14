@@ -1,13 +1,10 @@
 // Game handler - action validation, state updates, and broadcasts
-import type { Server, Socket } from 'socket.io';
 import { roomManager } from './roomManager';
 import type {
   Card,
   GameState,
   PublicGameView,
   PrivateHandPayload,
-  ServerToClientEvents,
-  ClientToServerEvents,
 } from '@hello-world/game-core';
 import {
   generateDeck,
@@ -19,10 +16,7 @@ import {
   isGameOver,
   declareLastCard,
 } from '@hello-world/game-core';
-import type { InterServerEvents, SocketData } from './types';
-
-type TypedServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
-type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+import type { TypedServer, TypedSocket } from './types';
 
 // ========== State Conversion ==========
 
