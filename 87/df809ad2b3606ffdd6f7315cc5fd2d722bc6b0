@@ -1,0 +1,43 @@
+docs/plans/11-observability-runbook.md
+  s_755438b5ce44c9::t_acce50697254cc 1-120
+docs/plans/12-ci-supply-chain-gates.md
+  s_755438b5ce44c9::t_4a2bddc7aa8919 1-98
+docs/plans/03-stable-player-sessions.md
+  s_755438b5ce44c9::t_0770f8a227f213 1-113
+docs/plans/02-server-authoritative-card-commands.md
+  s_755438b5ce44c9::t_c846cf49a90fa9 1-101
+docs/plans/05-room-game-lifecycle.md
+  s_755438b5ce44c9::t_cefe046bae6126 1-104
+docs/plans/09-release-verification.md
+  s_755438b5ce44c9::t_6d4934790a090b 1-112
+docs/plans/10-container-staged-deployment.md
+  s_755438b5ce44c9::t_4228c35bfc276b 1-117
+docs/plans/04-two-player-online-mvp.md
+  s_755438b5ce44c9::t_6db645e405ddae 1-73
+docs/plans/07-environment-configuration.md
+  s_755438b5ce44c9::t_dbe4d33383eed9 1-117
+docs/plans/01-socket-runtime-validation.md
+  s_755438b5ce44c9::t_7ee05c69e29424 1-100
+docs/plans/08-abuse-resource-controls.md
+  s_755438b5ce44c9::t_9cf4b8aafbced8 1-102
+docs/plans/06-reconnect-resume.md
+  s_755438b5ce44c9::t_15159a3e83ef49 1-125
+docs/plans/README.md
+  s_755438b5ce44c9::t_98c08761265228 1-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "87df809ad2b3606ffdd6f7315cc5fd2d722bc6b0",
+  "prompts": {},
+  "sessions": {
+    "s_755438b5ce44c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5c6eabb1-c6a5-480d-b76e-169d127a0389",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
