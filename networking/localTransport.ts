@@ -41,6 +41,7 @@ function toPublicView(state: GameState, roomId: string): PublicGameView {
     lastCardCalled: state.lastCardCalled,
     drawPressure: state.drawPressure,
     hasPlayed: state.hasPlayed,
+    activeSuit: state.activeSuit ?? null,
     players: state.players.map((hand, idx) => ({
       playerId: idx === 0 ? 'player' : 'bot',
       handCount: hand.length,
@@ -81,6 +82,7 @@ function createInitialState(): GameState {
     lastCardCalled: [false, false],
     drawPressure: 0,
     hasPlayed: [false, false],
+    activeSuit: null,
   };
 }
 
@@ -195,7 +197,7 @@ export class LocalTransport implements GameTransport {
 
     switch (action.type) {
       case 'PLAY_CARDS':
-        newState = applyCardEffect(this.state, action.cards);
+        newState = applyCardEffect(this.state, action.cards, action.declaredSuit);
         break;
 
       case 'DRAW_CARD': {
@@ -303,7 +305,11 @@ export class LocalTransport implements GameTransport {
       if (move.draw) {
         this.processBotAction({ type: 'DRAW_CARD' });
       } else if (move.cards) {
-        this.processBotAction({ type: 'PLAY_CARDS', cards: move.cards });
+        this.processBotAction({
+          type: 'PLAY_CARDS',
+          cards: move.cards,
+          declaredSuit: move.declaredSuit,
+        });
       }
     }, delay);
   }
@@ -315,7 +321,7 @@ export class LocalTransport implements GameTransport {
 
     switch (action.type) {
       case 'PLAY_CARDS':
-        newState = applyCardEffect(this.state, action.cards);
+        newState = applyCardEffect(this.state, action.cards, action.declaredSuit);
         break;
 
       case 'DRAW_CARD': {

@@ -20,7 +20,7 @@ import type { TypedServer, TypedSocket } from './types';
 import {
   createRoomSchema,
   joinRoomSchema,
-  playCardsSchema,
+  playCardsCommandSchema,
 } from './validation/schemas';
 import { makeProtocolError } from '@hello-world/game-core';
 
@@ -123,10 +123,10 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
   });
 
   socket.on('play_cards', (...args: unknown[]) => {
-    guard('play_cards', playCardsSchema, args, socket, (cards) => {
+    guard('play_cards', playCardsCommandSchema, args, socket, (command) => {
       const roomId = socket.data.roomId;
       if (roomId) {
-        handleGameAction(io, socket, roomId, 'play_cards', cards);
+        handleGameAction(io, socket, roomId, 'play_cards', command);
       }
     });
   });

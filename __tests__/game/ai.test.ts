@@ -2,6 +2,35 @@ import { getComputerMove, getBotTurnDelay } from '../../game/ai';
 import { generateDeck } from '../../game/deck';
 import type { GameState } from '../../game/types';
 
+describe('Bot declared suit for Aces (MFP-02)', () => {
+  it('returns a deterministic declaredSuit when the play ends on an Ace', () => {
+    const state = createTestState();
+    state.currentPlayer = 1;
+    state.discardPile = [{ id: 'A♦', rank: 'A', suit: '♦' }];
+    // A♣ is playable (rank matches the Ace on top); remaining cards are mostly ♥.
+    state.players[1] = [
+      { id: 'A♣', rank: 'A', suit: '♣' },
+      { id: '5♥', rank: '5', suit: '♥' },
+      { id: '9♥', rank: '9', suit: '♥' },
+    ];
+
+    const move = getComputerMove(state, 'medium');
+    expect(move.cards?.some((c) => c.rank === 'A')).toBe(true);
+    expect(move.declaredSuit).toBe('♥'); // most common remaining suit
+  });
+
+  it('omits declaredSuit for a non-Ace play', () => {
+    const state = createTestState();
+    state.currentPlayer = 1;
+    state.discardPile = [{ id: '7♥', rank: '7', suit: '♥' }];
+    state.players[1] = [{ id: '7♣', rank: '7', suit: '♣' }];
+
+    const move = getComputerMove(state, 'medium');
+    expect(move.cards).toBeDefined();
+    expect(move.declaredSuit).toBeUndefined();
+  });
+});
+
 describe('AI', () => {
   describe('getComputerMove', () => {
     it('draws when no valid moves', () => {

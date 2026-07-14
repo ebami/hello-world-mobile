@@ -12,7 +12,7 @@
  */
 
 import { z } from 'zod';
-import type { Suit, Rank } from '@hello-world/game-core';
+import type { Suit } from '@hello-world/game-core';
 
 // ========== Bounds ==========
 
@@ -34,28 +34,8 @@ const MAX_CARD_ID_LENGTH = 8;
 // ========== Primitives ==========
 
 const SUITS: readonly [Suit, ...Suit[]] = ['♠', '♥', '♦', '♣'];
-const RANKS: readonly [Rank, ...Rank[]] = [
-  'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K',
-];
 
 export const suitSchema = z.enum(SUITS);
-export const rankSchema = z.enum(RANKS);
-
-/**
- * A card as it appears on the wire. `.strict()` rejects any extra properties,
- * so a client cannot smuggle additional fields through validation.
- *
- * NOTE (MFP-01 scope): this validates the *shape* of client-supplied cards.
- * Making the server derive cards from its own authoritative hand (so rank/suit
- * cannot be forged at all) is MFP-02.
- */
-export const cardSchema = z
-  .object({
-    id: z.string().min(1).max(MAX_CARD_ID_LENGTH),
-    rank: rankSchema,
-    suit: suitSchema,
-  })
-  .strict();
 
 const playerNameSchema = z.string().trim().min(1).max(MAX_PLAYER_NAME);
 
@@ -83,15 +63,22 @@ export const joinRoomSchema = z
   .strict();
 
 /**
- * `play_cards` payload. In MFP-01 the wire shape is still `Card[]`; MFP-02
- * replaces it with a `{ cardIds, declaredSuit }` command.
+ * `play_cards` command (MFP-02). The client sends only card IDs plus an
+ * optional declared suit — never a card's rank or physical suit — so the
+ * server derives every played card from its own authoritative hand. `.strict()`
+ * rejects any attempt to smuggle rank/suit or other fields.
  */
-export const playCardsSchema = z
-  .array(cardSchema)
-  .min(1)
-  .max(MAX_CARDS_PER_PLAY);
+export const playCardsCommandSchema = z
+  .object({
+    cardIds: z
+      .array(z.string().min(1).max(MAX_CARD_ID_LENGTH))
+      .min(1)
+      .max(MAX_CARDS_PER_PLAY),
+    declaredSuit: suitSchema.optional(),
+  })
+  .strict();
 
 // Validated output types (inferred from the schemas above).
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;
 export type JoinRoomInput = z.infer<typeof joinRoomSchema>;
-export type PlayCardsInput = z.infer<typeof playCardsSchema>;
+export type PlayCardsCommandInput = z.infer<typeof playCardsCommandSchema>;

@@ -1,7 +1,35 @@
-import type { Card, GameState } from "./types";
+import type { Card, GameState, Suit } from "./types";
 import { getValidMoves } from "./gameLogic";
 
 export type Difficulty = "easy" | "medium" | "hard";
+
+const SUIT_ORDER: Suit[] = ["♠", "♥", "♦", "♣"];
+
+/**
+ * Deterministically choose the active suit when the bot plays an Ace as its
+ * final card: the most frequent suit among the bot's remaining cards, breaking
+ * ties by a fixed suit order. Falls back to the Ace's own suit when no cards
+ * would remain. Deterministic so bot behaviour is testable.
+ */
+function chooseDeclaredSuit(hand: Card[], played: Card[]): Suit {
+  const playedIds = new Set(played.map((c) => c.id));
+  const remaining = hand.filter((c) => !playedIds.has(c.id));
+  if (remaining.length === 0) return played[played.length - 1].suit;
+
+  const counts = new Map<Suit, number>();
+  for (const c of remaining) counts.set(c.suit, (counts.get(c.suit) ?? 0) + 1);
+
+  let best: Suit = SUIT_ORDER[0];
+  let bestCount = -1;
+  for (const suit of SUIT_ORDER) {
+    const n = counts.get(suit) ?? 0;
+    if (n > bestCount) {
+      best = suit;
+      bestCount = n;
+    }
+  }
+  return best;
+}
 
 /**
  * Check whether the bot should declare "last card" before playing.
@@ -24,7 +52,12 @@ export function shouldBotDeclareLastCard(
   const topCard = state.discardPile[state.discardPile.length - 1];
   if (!topCard) return false;
 
-  const validMoves = getValidMoves(hand, topCard, state.drawPressure);
+  const validMoves = getValidMoves(
+    hand,
+    topCard,
+    state.drawPressure,
+    state.activeSuit ?? null,
+  );
 
   if (hand.length === 1) {
     return validMoves.singles.some((c) => c.id === hand[0].id);
@@ -45,12 +78,26 @@ export function getComputerMove(
 ): {
   cards?: Card[];
   draw?: boolean;
+  declaredSuit?: Suit;
 } {
   const hand = state.players[state.currentPlayer];
   const topCard = state.discardPile.at(-1);
   if (!topCard) return { draw: true };
 
-  const validMoves = getValidMoves(hand, topCard, state.drawPressure);
+  // Attach a declared suit whenever the chosen play ends on an Ace.
+  const withSuit = (
+    cards: Card[],
+  ): { cards: Card[]; declaredSuit?: Suit } =>
+    cards[cards.length - 1].rank === "A"
+      ? { cards, declaredSuit: chooseDeclaredSuit(hand, cards) }
+      : { cards };
+
+  const validMoves = getValidMoves(
+    hand,
+    topCard,
+    state.drawPressure,
+    state.activeSuit ?? null,
+  );
   const valid = [...validMoves.singles.map((c) => [c]), ...validMoves.runs];
 
   if (valid.length === 0) {
@@ -60,13 +107,13 @@ export function getComputerMove(
   // Highest priority: go out if possible (play all remaining cards)
   const goOutMove = valid.find((run) => run.length === hand.length);
   if (goOutMove) {
-    return { cards: goOutMove };
+    return withSuit(goOutMove);
   }
 
   // Easy mode: 30% chance to pick random valid move
   if (difficulty === "easy" && Math.random() < 0.3) {
     const randomIndex = Math.floor(Math.random() * valid.length);
-    return { cards: valid[randomIndex] };
+    return withSuit(valid[randomIndex]);
   }
 
   const drawValue = (run: Card[]) =>
@@ -99,7 +146,7 @@ export function getComputerMove(
     const drawMoves = valid.filter((run) => drawValue(run) > 0);
     if (drawMoves.length > 0) {
       drawMoves.sort((a, b) => drawValue(b) - drawValue(a));
-      return { cards: drawMoves[0] };
+      return withSuit(drawMoves[0]);
     }
   }
 
@@ -107,11 +154,11 @@ export function getComputerMove(
     const choices = valid.filter(matches);
     if (choices.length > 0) {
       choices.sort((a, b) => drawValue(b) - drawValue(a));
-      return { cards: choices[0] };
+      return withSuit(choices[0]);
     }
   }
 
-  return { cards: valid[0] };
+  return withSuit(valid[0]);
 }
 
 export function getBotTurnDelay(difficulty: Difficulty = "medium"): number {

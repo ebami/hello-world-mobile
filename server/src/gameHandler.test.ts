@@ -3,7 +3,9 @@
  */
 
 import { roomManager } from './roomManager';
-import type { Card, GameState } from './types';
+import { handleGameAction } from './gameHandler';
+import { playCardsCommandSchema } from './validation/schemas';
+import type { Card, GameState, TypedServer, TypedSocket } from './types';
 
 // Helper to reset room manager state between tests
 function resetRoomManager() {
@@ -317,5 +319,141 @@ describe('GameHandler - Socket Events', () => {
       gameState.lastCardCalled[0] = true;
       expect(gameState.lastCardCalled[0]).toBe(true);
     });
+  });
+});
+
+describe('GameHandler - server-authoritative play_cards (MFP-02)', () => {
+  const KH: Card = { id: 'K♥', suit: '♥', rank: 'K' };
+  const AS: Card = { id: 'A♠', suit: '♠', rank: 'A' };
+  const C3: Card = { id: '3♣', suit: '♣', rank: '3' };
+  const TOP_KS: Card = { id: 'K♠', suit: '♠', rank: 'K' };
+  const BOB_CARD: Card = { id: 'Q♦', suit: '♦', rank: 'Q' };
+  const FIVE_H: Card = { id: '5♥', suit: '♥', rank: '5' };
+  const SIX_H: Card = { id: '6♥', suit: '♥', rank: '6' };
+  const NINE_C: Card = { id: '9♣', suit: '♣', rank: '9' };
+  const TOP_5S: Card = { id: '5♠', suit: '♠', rank: '5' };
+
+  beforeEach(() => {
+    resetRoomManager();
+  });
+
+  // Seed a room where Alice (seat 0) holds `aliceHand`, it is her turn, and the
+  // discard top is K♠. Returns a mock io/socket that records emitted events.
+  function setup(aliceHand: Card[], top: Card = TOP_KS) {
+    const room = roomManager.createRoom('h', 'Alice', 's1');
+    const roomId = room.roomId;
+    roomManager.joinRoom(roomId, 'p2', 'Bob', 's2');
+    roomManager.setGameState(
+      roomId,
+      createMockGameState({
+        players: [aliceHand, [BOB_CARD]],
+        discardPile: [top],
+        currentPlayer: 0,
+      }),
+    );
+
+    const emitted: Array<[string, ...unknown[]]> = [];
+    const socket = {
+      id: 's1',
+      data: { playerId: 'Alice', playerName: 'Alice', roomId },
+      emit: (event: string, ...args: unknown[]) => {
+        emitted.push([event, ...args]);
+      },
+    } as unknown as TypedSocket;
+    const io = {
+      to: () => ({ emit: () => undefined }),
+    } as unknown as TypedServer;
+
+    return { io, socket, roomId, emitted };
+  }
+
+  const errors = (emitted: Array<[string, ...unknown[]]>) =>
+    emitted.filter(([ev]) => ev === 'error').map(([, msg]) => msg);
+
+  it('rejects a card id the player does not hold (forgery is impossible)', () => {
+    const { io, socket, roomId, emitted } = setup([KH, AS, C3]);
+    handleGameAction(io, socket, roomId, 'play_cards', { cardIds: ['ZZ-not-real'] });
+    expect(errors(emitted)).toContain('Card not in your hand');
+  });
+
+  it('rejects duplicate card ids', () => {
+    const { io, socket, roomId, emitted } = setup([KH, AS, C3]);
+    handleGameAction(io, socket, roomId, 'play_cards', { cardIds: ['K♥', 'K♥'] });
+    expect(errors(emitted)).toContain('Duplicate card in play');
+  });
+
+  it("rejects a card id belonging to another player's hand", () => {
+    const { io, socket, roomId, emitted } = setup([KH, AS, C3]);
+    handleGameAction(io, socket, roomId, 'play_cards', { cardIds: ['Q♦'] });
+    expect(errors(emitted)).toContain('Card not in your hand');
+  });
+
+  it('accepts a valid single play referenced by canonical id', () => {
+    const { io, socket, roomId, emitted } = setup([KH, AS, C3]);
+    handleGameAction(io, socket, roomId, 'play_cards', { cardIds: ['K♥'] });
+    expect(errors(emitted)).toEqual([]);
+    const state = roomManager.getGameState(roomId)!;
+    expect(state.discardPile.at(-1)!.id).toBe('K♥');
+    expect(state.players[0].some((c) => c.id === 'K♥')).toBe(false);
+  });
+
+  it('requires a declared suit when the final card is an Ace', () => {
+    const { io, socket, roomId, emitted } = setup([KH, AS, C3]);
+    handleGameAction(io, socket, roomId, 'play_cards', { cardIds: ['A♠'] });
+    expect(errors(emitted)).toContain('Must declare a suit when playing an Ace');
+  });
+
+  it('rejects a declared suit when the final card is not an Ace', () => {
+    const { io, socket, roomId, emitted } = setup([KH, AS, C3]);
+    handleGameAction(io, socket, roomId, 'play_cards', {
+      cardIds: ['K♥'],
+      declaredSuit: '♥',
+    });
+    expect(errors(emitted)).toContain(
+      'A suit may only be declared when the final card is an Ace',
+    );
+  });
+
+  it('plays an Ace: keeps its original suit on the pile, records the active suit', () => {
+    const { io, socket, roomId, emitted } = setup([KH, AS, C3]);
+    handleGameAction(io, socket, roomId, 'play_cards', {
+      cardIds: ['A♠'],
+      declaredSuit: '♥',
+    });
+    expect(errors(emitted)).toEqual([]);
+    const state = roomManager.getGameState(roomId)!;
+    const top = state.discardPile.at(-1)!;
+    expect(top.id).toBe('A♠');
+    expect(top.suit).toBe('♠'); // physical suit unchanged (not forged to ♥)
+    expect(state.activeSuit).toBe('♥'); // the declared suit is what's in force
+  });
+
+  it('accepts a valid multi-card run in the submitted order', () => {
+    const { io, socket, roomId, emitted } = setup([FIVE_H, SIX_H, NINE_C], TOP_5S);
+    handleGameAction(io, socket, roomId, 'play_cards', { cardIds: ['5♥', '6♥'] });
+    expect(errors(emitted)).toEqual([]);
+    const state = roomManager.getGameState(roomId)!;
+    expect(state.discardPile.map((c) => c.id)).toEqual(
+      expect.arrayContaining(['5♥', '6♥']),
+    );
+    expect(state.players[0].map((c) => c.id)).toEqual(['9♣']);
+  });
+
+  it('rejects a run submitted in the wrong order', () => {
+    const { io, socket, roomId, emitted } = setup([FIVE_H, SIX_H, NINE_C], TOP_5S);
+    handleGameAction(io, socket, roomId, 'play_cards', { cardIds: ['6♥', '5♥'] });
+    expect(errors(emitted)).toContain('Invalid card play');
+  });
+
+  it('strict schema rejects forged rank/suit smuggled alongside cardIds', () => {
+    // The command carries only IDs (+ optional declaredSuit); any extra field
+    // — notably a forged rank/suit — must be rejected by the strict schema.
+    expect(
+      playCardsCommandSchema.safeParse({ cardIds: ['K♥'], rank: 'A', suit: '♠' }).success,
+    ).toBe(false);
+    expect(playCardsCommandSchema.safeParse({ cardIds: ['K♥'] }).success).toBe(true);
+    expect(
+      playCardsCommandSchema.safeParse({ cardIds: ['A♠'], declaredSuit: '♥' }).success,
+    ).toBe(true);
   });
 });

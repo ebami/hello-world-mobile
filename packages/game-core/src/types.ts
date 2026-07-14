@@ -54,6 +54,12 @@ export interface GameState {
    * acted, their value remains `true` for the rest of the hand.
    */
   hasPlayed: boolean[];
+  /**
+   * The suit currently in force. Set to the declared suit after an Ace is
+   * played (the Ace keeps its own physical suit in the discard pile); `null`
+   * otherwise. Valid-move calculation matches against this suit when present.
+   */
+  activeSuit?: Suit | null;
 }
 
 // ========== Public / Private Views ==========
@@ -75,6 +81,8 @@ export interface PublicGameView {
   lastCardCalled: boolean[];
   drawPressure: number;
   hasPlayed: boolean[];
+  /** Suit currently in force (the declared suit after an Ace), or null. */
+  activeSuit?: Suit | null;
   players: PlayerSummary[];
 }
 
@@ -126,6 +134,23 @@ export interface PlayCardsAction {
   type: "PLAY_CARDS";
   /** The cards to play, in order */
   cards: Card[];
+  /**
+   * Chosen active suit — required when the final played card is an Ace,
+   * rejected otherwise. Carried through to the network as `declaredSuit`.
+   */
+  declaredSuit?: Suit;
+}
+
+/**
+ * Network command for playing cards. The server resolves `cardIds` against the
+ * player's own authoritative hand, so a client can never forge a card's rank
+ * or physical suit — only reference cards it actually holds.
+ */
+export interface PlayCardsCommand {
+  /** IDs of the cards to play, in the intended order. */
+  cardIds: string[];
+  /** Chosen active suit — required when the final played card is an Ace. */
+  declaredSuit?: Suit;
 }
 
 /** Action to draw card(s) from the deck. */
@@ -173,7 +198,7 @@ export interface ClientToServerEvents {
   ) => void;
   leave_room: () => void;
   start_game: () => void;
-  play_cards: (cards: Card[]) => void;
+  play_cards: (command: PlayCardsCommand) => void;
   draw_card: () => void;
   declare_last_card: () => void;
 }

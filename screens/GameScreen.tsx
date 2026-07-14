@@ -40,7 +40,7 @@ interface GameScreenProps {
 // Game actions
 type GameAction =
   | { type: 'INITIALIZE' }
-  | { type: 'PLAY_CARDS'; cards: CardType[] }
+  | { type: 'PLAY_CARDS'; cards: CardType[]; declaredSuit?: Suit }
   | { type: 'DRAW_CARD' }
   | { type: 'DECLARE_LAST_CARD'; player: number }
   | { type: 'SET_MESSAGE'; message: string };
@@ -60,6 +60,7 @@ function createInitialState(): GameState {
     lastCardCalled: [false, false],
     drawPressure: 0,
     hasPlayed: [false, false],
+    activeSuit: null,
   };
 }
 
@@ -69,7 +70,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return createInitialState();
 
     case 'PLAY_CARDS':
-      return applyCardEffect(state, action.cards);
+      return applyCardEffect(state, action.cards, action.declaredSuit);
 
     case 'DRAW_CARD': {
       const count = state.drawPressure > 0 ? state.drawPressure : 1;
@@ -135,8 +136,10 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain, onViewStat
   // Get valid moves for current player
   const validMoves = useMemo(() => {
     if (!topCard) return { singles: [], runs: [] };
-    return getValidMoves(playerHand, topCard, state.drawPressure);
-  }, [playerHand, topCard, state.drawPressure]);
+    // Match against the active suit in force after an Ace (not the Ace's own
+    // physical suit). Single-player is authoritative, so this calc IS the rule.
+    return getValidMoves(playerHand, topCard, state.drawPressure, state.activeSuit ?? null);
+  }, [playerHand, topCard, state.drawPressure, state.activeSuit]);
 
   // Check if player can declare last card
   const canDeclareLastCard = useMemo(() => {
@@ -162,7 +165,7 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain, onViewStat
       if (move.draw) {
         dispatch({ type: 'DRAW_CARD' });
       } else if (move.cards) {
-        dispatch({ type: 'PLAY_CARDS', cards: move.cards });
+        dispatch({ type: 'PLAY_CARDS', cards: move.cards, declaredSuit: move.declaredSuit });
       }
       setIsProcessing(false);
     }, getBotTurnDelay(difficulty));
@@ -234,12 +237,10 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain, onViewStat
 
   const handleSuitSelect = useCallback((suit: Suit) => {
     if (!pendingPlay) return;
-    
-    const modifiedCards = pendingPlay.map((card, idx) =>
-      idx === pendingPlay.length - 1 ? { ...card, suit } : card
-    );
-    
-    dispatch({ type: 'PLAY_CARDS', cards: modifiedCards });
+
+    // Carry the choice as declaredSuit; the Ace keeps its own suit and
+    // applyCardEffect records the active suit separately.
+    dispatch({ type: 'PLAY_CARDS', cards: pendingPlay, declaredSuit: suit });
     setSelectedCards([]);
     setPendingPlay(null);
     setShowSuitPicker(false);
@@ -317,6 +318,9 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain, onViewStat
           <Text style={styles.pressureWarning}>
             ⚠️ Draw pressure: +{state.drawPressure} cards
           </Text>
+        )}
+        {state.activeSuit && (
+          <Text style={styles.messageText}>Suit in force: {state.activeSuit}</Text>
         )}
       </View>
 

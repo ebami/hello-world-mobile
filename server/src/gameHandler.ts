@@ -5,6 +5,7 @@ import type {
   GameState,
   PublicGameView,
   PrivateHandPayload,
+  PlayCardsCommand,
 } from '@hello-world/game-core';
 import {
   generateDeck,
@@ -32,6 +33,7 @@ function toPublicView(state: GameState, roomId: string): PublicGameView {
     lastCardCalled: state.lastCardCalled,
     drawPressure: state.drawPressure,
     hasPlayed: state.hasPlayed,
+    activeSuit: state.activeSuit ?? null,
     players: room?.players ?? [],
   };
 }
@@ -66,8 +68,9 @@ export function initializeGame(roomId: string): GameState | null {
     lastCardCalled: room.players.map(() => false),
     drawPressure: 0,
     hasPlayed: room.players.map(() => false),
+    activeSuit: null,
   };
-  
+
   roomManager.setGameState(roomId, gameState);
   return gameState;
 }
@@ -77,7 +80,7 @@ export function handleGameAction(
   socket: TypedSocket,
   roomId: string,
   action: 'play_cards' | 'draw_card' | 'declare_last_card',
-  cards?: Card[]
+  command?: PlayCardsCommand
 ): void {
   const playerName = socket.data.playerName;
   const room = roomManager.getRoom(roomId);
@@ -102,30 +105,68 @@ export function handleGameAction(
   
   switch (action) {
     case 'play_cards': {
-      if (!cards || cards.length === 0) {
+      if (!command || command.cardIds.length === 0) {
         socket.emit('error', 'No cards provided');
         return;
       }
-      
-      const topCard = gameState.discardPile[gameState.discardPile.length - 1];
-      
-      // Validate using shared getValidMoves (full rule set)
+
+      // Resolve requested IDs against the player's OWN authoritative hand.
+      // The client supplies only IDs — never rank/suit — and each ID must
+      // reference a distinct card the player actually holds. This is what makes
+      // a forged rank/suit impossible: canonical cards come from server state.
       const playerHand = gameState.players[playerIndex];
-      const validMoves = getValidMoves(playerHand, topCard, gameState.drawPressure);
-      
-      const isValidPlay = cards.length === 1
-        ? validMoves.singles.some(c => c.id === cards[0].id)
+      const seen = new Set<string>();
+      const canonical: Card[] = [];
+      for (const id of command.cardIds) {
+        if (seen.has(id)) {
+          socket.emit('error', 'Duplicate card in play');
+          return;
+        }
+        seen.add(id);
+        const card = playerHand.find(c => c.id === id);
+        if (!card) {
+          socket.emit('error', 'Card not in your hand');
+          return;
+        }
+        canonical.push(card);
+      }
+
+      const topCard = gameState.discardPile[gameState.discardPile.length - 1];
+
+      // Validate using shared getValidMoves (full rule set), honouring the
+      // active suit in force after an Ace — and only canonical server cards.
+      const validMoves = getValidMoves(
+        playerHand,
+        topCard,
+        gameState.drawPressure,
+        gameState.activeSuit ?? null,
+      );
+
+      const isValidPlay = canonical.length === 1
+        ? validMoves.singles.some(c => c.id === canonical[0].id)
         : validMoves.runs.some(run =>
-            run.length === cards.length &&
-            run.every((c, i) => c.id === cards[i].id)
+            run.length === canonical.length &&
+            run.every((c, i) => c.id === canonical[i].id)
           );
-      
+
       if (!isValidPlay) {
         socket.emit('error', 'Invalid card play');
         return;
       }
-      
-      gameState = applyCardEffect(gameState, cards);
+
+      // An Ace requires a declared suit; any other final card must not carry one.
+      const lastCard = canonical[canonical.length - 1];
+      if (lastCard.rank === 'A') {
+        if (!command.declaredSuit) {
+          socket.emit('error', 'Must declare a suit when playing an Ace');
+          return;
+        }
+      } else if (command.declaredSuit) {
+        socket.emit('error', 'A suit may only be declared when the final card is an Ace');
+        return;
+      }
+
+      gameState = applyCardEffect(gameState, canonical, command.declaredSuit);
       break;
     }
     

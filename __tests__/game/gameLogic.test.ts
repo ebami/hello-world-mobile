@@ -10,6 +10,58 @@ import {
 } from '../../game';
 import type { Card, GameState } from '../../game/types';
 
+describe('Active suit after an Ace (MFP-02)', () => {
+  const base: Omit<GameState, 'players' | 'discardPile'> = {
+    deck: [],
+    currentPlayer: 0,
+    direction: 1,
+    message: '',
+    lastCardCalled: [false, false],
+    drawPressure: 0,
+    hasPlayed: [false, false],
+  };
+
+  it('getValidMoves matches the active suit, not the Ace\'s physical suit', () => {
+    const top: Card = { id: 'A♠', rank: 'A', suit: '♠' }; // physical suit ♠
+    const hand: Card[] = [
+      { id: '5♥', rank: '5', suit: '♥' }, // matches the ACTIVE suit ♥
+      { id: '6♠', rank: '6', suit: '♠' }, // matches only the physical ♠
+    ];
+    const moves = getValidMoves(hand, top, 0, '♥');
+    const singleIds = moves.singles.map((c) => c.id);
+    expect(singleIds).toContain('5♥');
+    expect(singleIds).not.toContain('6♠');
+  });
+
+  it('applyCardEffect records the declared suit and keeps the Ace\'s own suit', () => {
+    const state: GameState = {
+      ...base,
+      players: [
+        [{ id: 'A♠', rank: 'A', suit: '♠' }, { id: '7♣', rank: '7', suit: '♣' }],
+        [{ id: '9♦', rank: '9', suit: '♦' }],
+      ],
+      discardPile: [{ id: 'K♠', rank: 'K', suit: '♠' }],
+    };
+    const next = applyCardEffect(state, [{ id: 'A♠', rank: 'A', suit: '♠' }], '♥');
+    expect(next.activeSuit).toBe('♥');
+    expect(next.discardPile.at(-1)).toMatchObject({ id: 'A♠', suit: '♠' });
+  });
+
+  it('applyCardEffect clears the active suit on a non-Ace play', () => {
+    const state: GameState = {
+      ...base,
+      activeSuit: '♥',
+      players: [
+        [{ id: '5♥', rank: '5', suit: '♥' }, { id: '7♣', rank: '7', suit: '♣' }],
+        [{ id: '9♦', rank: '9', suit: '♦' }],
+      ],
+      discardPile: [{ id: 'A♦', rank: 'A', suit: '♦' }],
+    };
+    const next = applyCardEffect(state, [{ id: '5♥', rank: '5', suit: '♥' }]);
+    expect(next.activeSuit).toBeNull();
+  });
+});
+
 describe('Game Logic', () => {
   describe('Deck Operations', () => {
     it('generateDeck creates 52 cards', () => {

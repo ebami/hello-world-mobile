@@ -285,10 +285,29 @@ describe('SocketTransport', () => {
       await transport.connect();
     });
 
-    it('should emit the action type as event', () => {
-      transport.sendAction({ type: 'PLAY_CARDS', cards: [] });
+    it('should emit play_cards as an id-based command (no card rank/suit)', () => {
+      transport.sendAction({
+        type: 'PLAY_CARDS',
+        cards: [{ id: '5♥', rank: '5', suit: '♥' }],
+      });
 
-      expect(mockSocket.emit).toHaveBeenCalledWith('play_cards', []);
+      expect(mockSocket.emit).toHaveBeenCalledWith('play_cards', {
+        cardIds: ['5♥'],
+        declaredSuit: undefined,
+      });
+    });
+
+    it('should forward the declared suit when playing an Ace', () => {
+      transport.sendAction({
+        type: 'PLAY_CARDS',
+        cards: [{ id: 'A♠', rank: 'A', suit: '♠' }],
+        declaredSuit: '♥',
+      });
+
+      expect(mockSocket.emit).toHaveBeenCalledWith('play_cards', {
+        cardIds: ['A♠'],
+        declaredSuit: '♥',
+      });
     });
 
     it('should emit draw_card event', () => {

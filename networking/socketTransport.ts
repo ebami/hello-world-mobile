@@ -198,7 +198,12 @@ export class SocketTransport implements GameTransport {
 
     switch (action.type) {
       case 'PLAY_CARDS':
-        this.socket.emit('play_cards', action.cards);
+        // Send only card IDs + the declared suit — never card rank/suit. The
+        // server resolves IDs against the player's authoritative hand.
+        this.socket.emit('play_cards', {
+          cardIds: action.cards.map((c) => c.id),
+          declaredSuit: action.declaredSuit,
+        });
         break;
       case 'DRAW_CARD':
         this.socket.emit('draw_card');

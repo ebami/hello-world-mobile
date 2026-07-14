@@ -1,6 +1,6 @@
 // Core game mechanics for a shedding card game using a standard
 // 52-card deck with no Jokers.
-import type { Card, GameState, Rank } from "./types";
+import type { Card, GameState, Rank, Suit } from "./types";
 import { shuffleDeck } from "./deck";
 
 const rankOrder: Rank[] = [
@@ -32,6 +32,7 @@ export function getValidMoves(
   hand: Card[],
   topCard: Card,
   drawPressure = 0,
+  activeSuit: Suit | null = null,
 ): {
   singles: Card[];
   runs: Card[][];
@@ -41,11 +42,14 @@ export function getValidMoves(
   const isRedJack = (c: Card) =>
     c.rank === "J" && (c.suit === "♥" || c.suit === "♦");
 
+  // After an Ace, the suit in force is the declared `activeSuit`, not the
+  // Ace's own physical suit (which stays on the discard pile unchanged).
+  const matchSuit = activeSuit ?? topCard.suit;
   const canStart = (card: Card) => {
     if (drawPressure > 0) return isDrawCard(card) || isRedJack(card);
     return (
       topCard.rank === "Q" ||
-      card.suit === topCard.suit ||
+      card.suit === matchSuit ||
       card.rank === topCard.rank
     );
   };
@@ -183,7 +187,11 @@ export function drawCards(
   return { deck: deckCopy, discardPile: discardCopy, drawn: draw };
 }
 
-export function applyCardEffect(state: GameState, cards: Card[]): GameState {
+export function applyCardEffect(
+  state: GameState,
+  cards: Card[],
+  declaredSuit?: Suit,
+): GameState {
   const playerIndex = state.currentPlayer;
   const players = state.players.map((hand, idx) =>
     idx === playerIndex
@@ -252,7 +260,10 @@ export function applyCardEffect(state: GameState, cards: Card[]): GameState {
       currentPlayer = nextPlayerIndex(currentPlayer, direction, players.length);
       break;
     case "A":
-      message = `Suit changed to ${last.suit}`;
+      // The Ace keeps its own suit on the discard pile; the *active* suit is
+      // the player's declared choice (falling back to the Ace's own suit only
+      // when no declaration is supplied, e.g. legacy/local paths).
+      message = `Suit changed to ${declaredSuit ?? last.suit}`;
       currentPlayer = nextPlayerIndex(currentPlayer, direction, players.length);
       break;
     case "Q":
@@ -307,6 +318,8 @@ export function applyCardEffect(state: GameState, cards: Card[]): GameState {
     lastCardCalled,
     hasPlayed,
     drawPressure,
+    // Set the active suit after an Ace; clear it on any other play.
+    activeSuit: last.rank === "A" ? (declaredSuit ?? last.suit) : null,
   };
 }
 
@@ -351,6 +364,8 @@ export function applyPenalty(
     lastCardCalled,
     hasPlayed,
     drawPressure: state.drawPressure,
+    // A penalty draw does not change the suit in force.
+    activeSuit: state.activeSuit ?? null,
   };
 }
 
@@ -416,7 +431,7 @@ export function declareLastCard(state: GameState, player: number): GameState {
   if (hand.length === 0) return state;
 
   const topCard = state.discardPile[state.discardPile.length - 1];
-  const valid = getValidMoves(hand, topCard, state.drawPressure);
+  const valid = getValidMoves(hand, topCard, state.drawPressure, state.activeSuit ?? null);
   const canGoOut =
     hand.length === 1
       ? valid.singles.some((c) => c.id === hand[0].id)

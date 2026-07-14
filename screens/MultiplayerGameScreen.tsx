@@ -48,8 +48,10 @@ export default function MultiplayerGameScreen({
   // Get valid moves for current player
   const validMoves = useMemo(() => {
     if (!topCard) return { singles: [], runs: [] };
-    return getValidMoves(hand, topCard, gameState.drawPressure);
-  }, [hand, topCard, gameState.drawPressure]);
+    // Honour the active suit after an Ace (the server re-validates, but this
+    // keeps client hints correct instead of matching the Ace's physical suit).
+    return getValidMoves(hand, topCard, gameState.drawPressure, gameState.activeSuit ?? null);
+  }, [hand, topCard, gameState.drawPressure, gameState.activeSuit]);
 
   // Check if player can declare last card
   const canDeclareLastCard = useMemo(() => {
@@ -137,13 +139,12 @@ export default function MultiplayerGameScreen({
 
   const handleSuitSelect = useCallback((suit: Suit) => {
     if (!pendingPlay) return;
-    
-    const modifiedCards = pendingPlay.map((card, idx) =>
-      idx === pendingPlay.length - 1 ? { ...card, suit } : card
-    );
-    
+
+    // Do NOT mutate the Ace's physical suit. Send the choice as `declaredSuit`
+    // so the server keeps the canonical card and records the active suit
+    // separately (the forged-suit vector this story closes).
     setIsProcessing(true);
-    transport.sendAction({ type: 'PLAY_CARDS', cards: modifiedCards });
+    transport.sendAction({ type: 'PLAY_CARDS', cards: pendingPlay, declaredSuit: suit });
     setSelectedCards([]);
     setPendingPlay(null);
     setShowSuitPicker(false);
@@ -208,6 +209,9 @@ export default function MultiplayerGameScreen({
           <Text style={styles.pressureWarning}>
             ⚠️ Draw pressure: +{gameState.drawPressure} cards
           </Text>
+        )}
+        {gameState.activeSuit && (
+          <Text style={styles.messageText}>Suit in force: {gameState.activeSuit}</Text>
         )}
       </View>
 
