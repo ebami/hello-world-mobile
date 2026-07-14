@@ -1,0 +1,57 @@
+packages/game-core/src/protocol.ts
+  s_755438b5ce44c9::t_0e938dc00d0e42 25
+  s_755438b5ce44c9::t_7cf9869a534c55 1-24,26-44
+server/src/validation/schemas.ts
+  s_755438b5ce44c9::t_6a3cd22b472de8 1-97
+server/src/validation/validatedHandler.ts
+  s_755438b5ce44c9::t_8e87dc858f5ec7 25
+  s_755438b5ce44c9::t_b59a4f7013837e 70-75,78,81
+  s_755438b5ce44c9::t_bb640aed7d6538 1-24,26-69,76-77,79-80,82-173
+server/src/socketValidation.test.ts
+  s_755438b5ce44c9::t_340d5347df50ba 1-29,34-211,235-267
+  s_755438b5ce44c9::t_dc4be1de2b0783 30-33
+  s_755438b5ce44c9::t_28aa43472ac2cd 212-234
+server/src/socketServer.ts
+  s_755438b5ce44c9::t_ae1389e8b81f2b 169-170,182
+  s_755438b5ce44c9::t_fc9819568d3a1b 18-19
+  s_755438b5ce44c9::t_0de9f05b9839d3 1-17,20-168,171-181,183-213
+server/src/index.ts
+  s_755438b5ce44c9::t_c0af819fa19d3e 6-13,15-16
+  s_755438b5ce44c9::t_094a60a8ef7e6d 1-4,21
+  s_755438b5ce44c9::t_ad165f216cbf97 5
+  s_755438b5ce44c9::t_e1e831a75e3ac0 19
+docs/residual-review-findings/01-security-socket-runtime-validation.md
+  s_755438b5ce44c9::t_618f30956df7d4 1-49
+package-lock.json
+  s_755438b5ce44c9::t_d63cc5b038463d 15146-15154,15199-15200,15209
+server/package.json
+  s_755438b5ce44c9::t_7d68ecbdc60f13 19-20,29
+__tests__/networking/socketTransport.test.ts
+  s_755438b5ce44c9::t_a820cd1c010ccf 260-264,266,272
+networking/socketTransport.ts
+  s_755438b5ce44c9::t_1e9917108af798 156,175-176
+packages/game-core/src/index.ts
+  s_755438b5ce44c9::t_2ca3256306115c 2
+packages/game-core/src/types.ts
+  s_755438b5ce44c9::t_3a1ad6aeca5ed5 8-9,168,172
+server/src/gameHandler.ts
+  s_755438b5ce44c9::t_895b579949f41d 19
+server/src/types.ts
+  s_755438b5ce44c9::t_2534c079fd74db 24-29,39-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "bbce44ea42d89893f5b0ce944af6c1c4f75342bc",
+  "prompts": {},
+  "sessions": {
+    "s_755438b5ce44c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5c6eabb1-c6a5-480d-b76e-169d127a0389",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
