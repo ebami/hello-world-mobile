@@ -17,15 +17,19 @@
 
 import type { ZodType, ZodError } from 'zod';
 import type {
-  RoomInfo,
+  RoomSession,
   ProtocolError,
   ProtocolErrorCode,
 } from '@hello-world/game-core';
 import { makeProtocolError } from '@hello-world/game-core';
 import type { TypedSocket } from '../types';
 
-/** Shape of the acknowledgement callback for room events. */
-export type RoomAck = (room: RoomInfo | null, error?: ProtocolError) => void;
+/**
+ * Shape of the acknowledgement callback for room events. Success returns a
+ * {@link RoomSession} (room + opaque identity + reconnect token); failure
+ * returns `null` plus a {@link ProtocolError}.
+ */
+export type RoomAck = (session: RoomSession | null, error?: ProtocolError) => void;
 
 /**
  * Error carrying a client-safe {@link ProtocolError}. Handlers throw this for

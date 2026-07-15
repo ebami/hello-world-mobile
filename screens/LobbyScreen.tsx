@@ -27,7 +27,15 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
   const [isJoining, setIsJoining] = useState(false);
   const [transport, setTransport] = useState<SocketTransport | null>(null);
 
-  const { connectionStatus, error, setConnectionStatus, setError, setPlayerName: savePlayerName } = useSessionStore();
+  const {
+    connectionStatus,
+    error,
+    setConnectionStatus,
+    setError,
+    setPlayerName: savePlayerName,
+    setPlayerId,
+    setReconnectToken,
+  } = useSessionStore();
 
   // Use ref to track if we've handed off the transport (ref works in cleanup)
   const handedOffRef = useRef(false);
@@ -69,13 +77,17 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
     setError(null);
 
     try {
-      const room = await transport.createRoom({
+      const session = await transport.createRoom({
         playerName: playerName.trim(),
         maxPlayers: 4,
       });
+      // Persist the server-issued opaque identity + reconnect token so host
+      // status and (later) reconnect are driven by stable identity, not name.
       savePlayerName(playerName.trim());
+      setPlayerId(session.playerId);
+      setReconnectToken(session.reconnectToken);
       handedOffRef.current = true; // Mark transport as handed off before navigating
-      onRoomJoined(room, transport);
+      onRoomJoined(session.room, transport);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create room';
       setError(message);
@@ -83,7 +95,7 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
     } finally {
       setIsCreating(false);
     }
-  }, [playerName, transport, connectionStatus, savePlayerName, onRoomJoined, setError]);
+  }, [playerName, transport, connectionStatus, savePlayerName, setPlayerId, setReconnectToken, onRoomJoined, setError]);
 
   const handleJoinRoom = useCallback(async () => {
     console.log('[LobbyScreen] handleJoinRoom called');
@@ -112,13 +124,15 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
     setError(null);
 
     try {
-      const room = await transport.joinRoom({
+      const session = await transport.joinRoom({
         roomId: roomCode.trim().toUpperCase(),
         playerName: playerName.trim(),
       });
       savePlayerName(playerName.trim());
+      setPlayerId(session.playerId);
+      setReconnectToken(session.reconnectToken);
       handedOffRef.current = true; // Mark transport as handed off before navigating
-      onRoomJoined(room, transport);
+      onRoomJoined(session.room, transport);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to join room';
       console.log('[LobbyScreen] Join error:', message);
@@ -127,7 +141,7 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
     } finally {
       setIsJoining(false);
     }
-  }, [playerName, roomCode, transport, connectionStatus, savePlayerName, onRoomJoined, setError]);
+  }, [playerName, roomCode, transport, connectionStatus, savePlayerName, setPlayerId, setReconnectToken, onRoomJoined, setError]);
 
   const isLoading = isCreating || isJoining;
   const isConnected = connectionStatus === 'connected';

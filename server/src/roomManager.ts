@@ -1,10 +1,15 @@
-// Room manager - handles room creation, joining, and player tracking
-import { v4 as uuidv4 } from 'uuid';
+// Room manager - handles room creation, joining, and player tracking.
+//
+// Identity model (MFP-03): players are keyed by an opaque, server-issued
+// `playerId` — never by display name and never by socket id. `displayName` is
+// presentation only; the per-room `socketIds` map records which socket
+// currently speaks for each player and is the authoritative source for
+// stale-socket detection during authorization.
 import type { RoomInfo, PlayerSummary, GameState } from './types';
 
 interface RoomData {
   info: RoomInfo;
-  socketIds: Map<string, string>; // playerId -> socketId
+  socketIds: Map<string, string>; // playerId -> current socketId
   gameState: GameState | null;
 }
 
@@ -27,9 +32,10 @@ class RoomManager {
 
   createRoom(hostId: string, hostName: string, socketId: string, maxPlayers: number = 4): RoomInfo {
     const roomId = this.generateRoomCode();
-    
+
     const hostPlayer: PlayerSummary = {
-      playerId: hostName,
+      playerId: hostId,
+      displayName: hostName,
       handCount: 0,
       connected: true,
       isBot: false,
@@ -37,7 +43,7 @@ class RoomManager {
 
     const roomInfo: RoomInfo = {
       roomId,
-      hostId: hostName,
+      hostId,
       players: [hostPlayer],
       maxPlayers,
       isStarted: false,
@@ -45,13 +51,13 @@ class RoomManager {
 
     const roomData: RoomData = {
       info: roomInfo,
-      socketIds: new Map([[hostName, socketId]]),
+      socketIds: new Map([[hostId, socketId]]),
       gameState: null,
     };
 
     this.rooms.set(roomId, roomData);
     console.log(`[${new Date().toISOString()}] [RoomManager] Created room ${roomId} by ${hostName}`);
-    
+
     return roomInfo;
   }
 
@@ -69,39 +75,41 @@ class RoomManager {
       throw new Error('Room is full');
     }
 
-    // Check if player name already exists
-    if (room.info.players.some(p => p.playerId === playerName)) {
+    // Display-name uniqueness is retained within a single room for clarity, but
+    // it is a presentation constraint only — never an identity/auth check.
+    if (room.info.players.some(p => p.displayName === playerName)) {
       throw new Error('Name already taken in this room');
     }
 
     const player: PlayerSummary = {
-      playerId: playerName,
+      playerId,
+      displayName: playerName,
       handCount: 0,
       connected: true,
       isBot: false,
     };
 
     room.info.players.push(player);
-    room.socketIds.set(playerName, socketId);
-    
+    room.socketIds.set(playerId, socketId);
+
     console.log(`[${new Date().toISOString()}] [RoomManager] ${playerName} joined room ${roomId}`);
-    
+
     return room.info;
   }
 
-  leaveRoom(roomId: string, playerName: string): RoomInfo | null {
+  leaveRoom(roomId: string, playerId: string): RoomInfo | null {
     const room = this.rooms.get(roomId);
     if (!room) {
       return null;
     }
 
-    const playerIndex = room.info.players.findIndex(p => p.playerId === playerName);
+    const playerIndex = room.info.players.findIndex(p => p.playerId === playerId);
     if (playerIndex === -1) {
       return null;
     }
 
     room.info.players.splice(playerIndex, 1);
-    room.socketIds.delete(playerName);
+    room.socketIds.delete(playerId);
 
     // If room is empty, delete it
     if (room.info.players.length === 0) {
@@ -110,22 +118,22 @@ class RoomManager {
       return null;
     }
 
-    // If host left, assign new host
-    if (room.info.hostId === playerName) {
+    // If host left, assign the next player as the new host (by opaque id).
+    if (room.info.hostId === playerId) {
       room.info.hostId = room.info.players[0].playerId;
       console.log(`[${new Date().toISOString()}] [RoomManager] New host for room ${roomId}: ${room.info.hostId}`);
     }
 
-    console.log(`[${new Date().toISOString()}] [RoomManager] ${playerName} left room ${roomId}`);
-    
+    console.log(`[${new Date().toISOString()}] [RoomManager] Player ${playerId} left room ${roomId}`);
+
     return room.info;
   }
 
-  setPlayerConnected(roomId: string, playerName: string, connected: boolean): void {
+  setPlayerConnected(roomId: string, playerId: string, connected: boolean): void {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
-    const player = room.info.players.find(p => p.playerId === playerName);
+    const player = room.info.players.find(p => p.playerId === playerId);
     if (player) {
       player.connected = connected;
     }
@@ -139,9 +147,42 @@ class RoomManager {
     return this.rooms.get(roomId) ?? null;
   }
 
-  getSocketId(roomId: string, playerName: string): string | null {
+  /** Look up a player summary within a room by opaque player id. */
+  getPlayer(roomId: string, playerId: string): PlayerSummary | null {
     const room = this.rooms.get(roomId);
-    return room?.socketIds.get(playerName) ?? null;
+    return room?.info.players.find(p => p.playerId === playerId) ?? null;
+  }
+
+  /** Whether the given player id is a member of the room. */
+  isMember(roomId: string, playerId: string): boolean {
+    return this.getPlayer(roomId, playerId) !== null;
+  }
+
+  getSocketId(roomId: string, playerId: string): string | null {
+    const room = this.rooms.get(roomId);
+    return room?.socketIds.get(playerId) ?? null;
+  }
+
+  /**
+   * Record the current socket for a player (e.g. on reconnect). Any command
+   * arriving on a socket other than this one is treated as stale by
+   * {@link isCurrentSocket}. Full reconnect wiring is completed in MFP-04; the
+   * setter exists now so authorization has a single source of truth.
+   */
+  setSocketId(roomId: string, playerId: string, socketId: string): void {
+    const room = this.rooms.get(roomId);
+    if (room && room.info.players.some(p => p.playerId === playerId)) {
+      room.socketIds.set(playerId, socketId);
+    }
+  }
+
+  /**
+   * Whether `socketId` is the socket currently mapped to `playerId` in this
+   * room. A mismatch means the socket is stale (superseded by a newer
+   * connection) and must not be allowed to act for the player.
+   */
+  isCurrentSocket(roomId: string, playerId: string, socketId: string): boolean {
+    return this.getSocketId(roomId, playerId) === socketId;
   }
 
   setGameState(roomId: string, gameState: GameState): void {
@@ -149,7 +190,7 @@ class RoomManager {
     if (room) {
       room.gameState = gameState;
       room.info.isStarted = true;
-      
+
       // Update hand counts
       gameState.players.forEach((hand, idx) => {
         if (room.info.players[idx]) {

@@ -38,12 +38,54 @@ function toPublicView(state: GameState, roomId: string): PublicGameView {
   };
 }
 
-function toHandPayload(state: GameState, roomId: string, playerName: string, playerIndex: number): PrivateHandPayload {
+function toHandPayload(state: GameState, roomId: string, playerId: string, playerIndex: number): PrivateHandPayload {
   return {
     roomId,
-    playerId: playerName,
+    playerId,
     hand: state.players[playerIndex],
   };
+}
+
+// ========== Authorization ==========
+
+/**
+ * Result of authorizing a room/game command against the socket's session and
+ * the server-side membership record.
+ */
+export type AuthorizedCommand =
+  | { ok: true; playerId: string; playerIndex: number }
+  | { ok: false; error: string };
+
+/**
+ * Authorize a command using the socket's server-set `playerId` (MFP-03) — never
+ * a client-supplied identity or a display name. A command is authorized only
+ * when every one of these holds; each maps to a rejection reason in the plan:
+ *
+ *  1. the socket carries an authenticated session (`socket.data.playerId`);
+ *  2. the socket's own room state matches the room being acted on;
+ *  3. the player is a current member of that room (server-side truth);
+ *  4. this socket is the current socket mapped to the player (not stale).
+ */
+export function authorizeRoomCommand(socket: TypedSocket, roomId: string): AuthorizedCommand {
+  const playerId = socket.data.playerId;
+  if (!playerId) {
+    return { ok: false, error: 'No authenticated session' };
+  }
+  if (socket.data.roomId !== roomId) {
+    return { ok: false, error: 'Not in this room' };
+  }
+  const room = roomManager.getRoom(roomId);
+  if (!room) {
+    return { ok: false, error: 'Room not found' };
+  }
+  const playerIndex = room.players.findIndex(p => p.playerId === playerId);
+  if (playerIndex === -1) {
+    return { ok: false, error: 'Not a member of this room' };
+  }
+  if (!roomManager.isCurrentSocket(roomId, playerId, socket.id)) {
+    return { ok: false, error: 'Session no longer active on this connection' };
+  }
+  return { ok: true, playerId, playerIndex };
 }
 
 // ========== Game Handler ==========
@@ -82,21 +124,25 @@ export function handleGameAction(
   action: 'play_cards' | 'draw_card' | 'declare_last_card',
   command?: PlayCardsCommand
 ): void {
-  const playerName = socket.data.playerName;
-  const room = roomManager.getRoom(roomId);
+  // Authorize by the socket's server-issued player id — not by name and not by
+  // any client-supplied value. Rejects unauthenticated, non-member, wrong-room,
+  // and stale-socket commands before any game state is read or mutated.
+  const auth = authorizeRoomCommand(socket, roomId);
+  if (!auth.ok) {
+    socket.emit('error', auth.error);
+    return;
+  }
+
+  const room = roomManager.getRoom(roomId)!; // guaranteed by authorization
   let gameState = roomManager.getGameState(roomId);
-  
-  if (!room || !gameState) {
+  if (!gameState) {
     socket.emit('error', 'Game not found');
     return;
   }
-  
-  const playerIndex = room.players.findIndex(p => p.playerId === playerName);
-  if (playerIndex === -1) {
-    socket.emit('error', 'Player not found');
-    return;
-  }
-  
+
+  const playerIndex = auth.playerIndex;
+  const displayName = room.players[playerIndex].displayName;
+
   // Validate turn (except for declare_last_card)
   if (action !== 'declare_last_card' && gameState.currentPlayer !== playerIndex) {
     socket.emit('error', 'Not your turn');
@@ -196,7 +242,7 @@ export function handleGameAction(
         discardPile,
         players,
         currentPlayer: nextPlayer,
-        message: `${playerName} drew ${drawn.length} card(s)`,
+        message: `${displayName} drew ${drawn.length} card(s)`,
         drawPressure: 0,
         hasPlayed,
         lastCardCalled,
@@ -214,7 +260,7 @@ export function handleGameAction(
       }
       gameState = {
         ...newState,
-        message: `${playerName} declared LAST CARD!`,
+        message: `${displayName} declared LAST CARD!`,
       };
       break;
     }
@@ -240,29 +286,31 @@ export function handleGameAction(
   // Check for game over
   const result = isGameOver(gameState);
   if (result.over) {
-    const winnerId = result.winner !== null ? room.players[result.winner]?.playerId : null;
-    let message = "It's a draw!";
-    if (result.winner !== null) {
-      message = `${winnerId} wins!`;
-    }
-    io.to(roomId).emit('game_over', winnerId ?? null, message);
+    // The wire `winnerId` is the opaque player id (identity); the message shows
+    // the human-readable display name.
+    const winner = result.winner !== null ? room.players[result.winner] : null;
+    const winnerId = winner?.playerId ?? null;
+    const message = winner ? `${winner.displayName} wins!` : "It's a draw!";
+    io.to(roomId).emit('game_over', winnerId, message);
   }
 }
 
 export function startGame(io: TypedServer, socket: TypedSocket, roomId: string): void {
-  const room = roomManager.getRoom(roomId);
-  const playerName = socket.data.playerName;
-  
-  if (!room) {
-    socket.emit('error', 'Room not found');
+  // Only an authenticated, current member may start — and only the host, by
+  // stable player id (a renamed player can never impersonate the host).
+  const auth = authorizeRoomCommand(socket, roomId);
+  if (!auth.ok) {
+    socket.emit('error', auth.error);
     return;
   }
-  
-  if (room.hostId !== playerName) {
+
+  const room = roomManager.getRoom(roomId)!; // guaranteed by authorization
+
+  if (room.hostId !== auth.playerId) {
     socket.emit('error', 'Only host can start game');
     return;
   }
-  
+
   if (room.players.length < 2) {
     socket.emit('error', 'Need at least 2 players');
     return;

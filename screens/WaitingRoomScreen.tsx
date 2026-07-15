@@ -80,7 +80,7 @@ export default function WaitingRoomScreen({
         </View>
         <View>
           <Text style={styles.playerName}>
-            {item.playerId}
+            {item.displayName}
             {index === 0 && ' (Host)'}
           </Text>
           <Text style={styles.playerStatus}>

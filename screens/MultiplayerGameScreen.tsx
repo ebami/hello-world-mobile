@@ -220,7 +220,7 @@ export default function MultiplayerGameScreen({
         {/* Opponent Area */}
         {mainOpponent && (
           <PlayerArea
-            name={mainOpponent.isBot ? '🤖 Bot' : `👤 ${mainOpponent.playerId}`}
+            name={mainOpponent.isBot ? '🤖 Bot' : `👤 ${mainOpponent.displayName}`}
             cards={Array.from({ length: mainOpponent.handCount }, (_, i) => ({ id: `hidden-${i}`, rank: 'A', suit: '♠' }))}
             isCurrentTurn={gameState.currentPlayer !== myPlayerIndex}
             faceDown

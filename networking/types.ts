@@ -19,6 +19,7 @@ export type {
   DeclareLastCardAction,
   GameAction,
   RoomInfo,
+  RoomSession,
   CreateRoomOptions,
   JoinRoomOptions,
   ServerToClientEvents,
@@ -30,6 +31,7 @@ import type {
   PrivateHandPayload,
   GameAction,
   RoomInfo,
+  RoomSession,
   CreateRoomOptions,
   JoinRoomOptions,
 } from '@hello-world/game-core';
@@ -97,16 +99,16 @@ export interface GameTransport {
   /**
    * Create a new game room (multiplayer only).
    * @param options - Room creation options
-   * @returns Promise resolving to the created room info
+   * @returns Promise resolving to the room session (room + opaque identity + token)
    */
-  createRoom?(options: CreateRoomOptions): Promise<RoomInfo>;
-  
+  createRoom?(options: CreateRoomOptions): Promise<RoomSession>;
+
   /**
    * Join an existing game room (multiplayer only).
    * @param options - Room joining options
-   * @returns Promise resolving to the joined room info
+   * @returns Promise resolving to the room session (room + opaque identity + token)
    */
-  joinRoom?(options: JoinRoomOptions): Promise<RoomInfo>;
+  joinRoom?(options: JoinRoomOptions): Promise<RoomSession>;
   
   /**
    * Leave the current room (multiplayer only).

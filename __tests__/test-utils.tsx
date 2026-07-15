@@ -82,6 +82,7 @@ export const testData = {
    */
   playerSummary: (overrides: Partial<PlayerSummary> = {}): PlayerSummary => ({
     playerId: `player-${Math.random().toString(36).slice(2, 9)}`,
+    displayName: 'Player',
     handCount: 5,
     connected: true,
     isBot: false,
@@ -98,6 +99,8 @@ export const testData = {
       testData.playerSummary({ playerId: 'player-1' }),
       testData.playerSummary({ playerId: 'player-2' }),
     ],
+    maxPlayers: 4,
+    isStarted: false,
     ...overrides,
   }),
 

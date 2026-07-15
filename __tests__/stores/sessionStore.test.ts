@@ -29,6 +29,10 @@ describe('sessionStore', () => {
       expect(useSessionStore.getState().playerName).toBeNull();
     });
 
+    it('should have null reconnectToken', () => {
+      expect(useSessionStore.getState().reconnectToken).toBeNull();
+    });
+
     it('should have empty players array', () => {
       expect(useSessionStore.getState().players).toEqual([]);
     });
@@ -62,14 +66,16 @@ describe('sessionStore', () => {
 
   describe('setRoom', () => {
     const mockPlayers: PlayerSummary[] = [
-      { playerId: 'p1', handCount: 5, connected: true, isBot: false },
-      { playerId: 'p2', handCount: 5, connected: true, isBot: false },
+      { playerId: 'p1', displayName: 'Alice', handCount: 5, connected: true, isBot: false },
+      { playerId: 'p2', displayName: 'Bob', handCount: 5, connected: true, isBot: false },
     ];
 
     const mockRoom: RoomInfo = {
       roomId: 'ABC123',
       hostId: 'p1',
       players: mockPlayers,
+      maxPlayers: 4,
+      isStarted: false,
     };
 
     it('should set room information', () => {
@@ -79,7 +85,7 @@ describe('sessionStore', () => {
       expect(useSessionStore.getState().players).toEqual(mockPlayers);
     });
 
-    it('should set isHost to true when local player is host', () => {
+    it('should set isHost to true when local player id matches host id', () => {
       // Set player ID first
       useSessionStore.getState().setPlayerId('p1');
       useSessionStore.getState().setRoom(mockRoom);
@@ -89,6 +95,17 @@ describe('sessionStore', () => {
 
     it('should set isHost to false when local player is not host', () => {
       useSessionStore.getState().setPlayerId('p2');
+      useSessionStore.getState().setRoom(mockRoom);
+
+      expect(useSessionStore.getState().isHost).toBe(false);
+    });
+
+    it('should NOT grant host on a display-name match when ids differ (MFP-03)', () => {
+      // The local player is 'p2' (Bob) but has spoofed their display name to the
+      // host id string. Host must be decided by opaque id only, so isHost stays
+      // false — this is the regression the identity split closes.
+      useSessionStore.getState().setPlayerId('p2');
+      useSessionStore.getState().setPlayerName('p1');
       useSessionStore.getState().setRoom(mockRoom);
 
       expect(useSessionStore.getState().isHost).toBe(false);
@@ -118,6 +135,19 @@ describe('sessionStore', () => {
     });
   });
 
+  describe('setReconnectToken', () => {
+    it('should set the reconnect token', () => {
+      useSessionStore.getState().setReconnectToken('token-xyz');
+      expect(useSessionStore.getState().reconnectToken).toBe('token-xyz');
+    });
+
+    it('should clear the reconnect token with null', () => {
+      useSessionStore.getState().setReconnectToken('token-xyz');
+      useSessionStore.getState().setReconnectToken(null);
+      expect(useSessionStore.getState().reconnectToken).toBeNull();
+    });
+  });
+
   describe('setError', () => {
     it('should set error message', () => {
       useSessionStore.getState().setError('Connection failed');
@@ -134,8 +164,8 @@ describe('sessionStore', () => {
   describe('updatePlayers', () => {
     it('should update the players array', () => {
       const players: PlayerSummary[] = [
-        { playerId: 'p1', handCount: 5, connected: true, isBot: false },
-        { playerId: 'p2', handCount: 4, connected: true, isBot: false },
+        { playerId: 'p1', displayName: 'Alice', handCount: 5, connected: true, isBot: false },
+        { playerId: 'p2', displayName: 'Bob', handCount: 4, connected: true, isBot: false },
       ];
 
       useSessionStore.getState().updatePlayers(players);
@@ -144,10 +174,10 @@ describe('sessionStore', () => {
 
     it('should replace existing players', () => {
       const initialPlayers: PlayerSummary[] = [
-        { playerId: 'p1', handCount: 5, connected: true, isBot: false },
+        { playerId: 'p1', displayName: 'Alice', handCount: 5, connected: true, isBot: false },
       ];
       const newPlayers: PlayerSummary[] = [
-        { playerId: 'p2', handCount: 3, connected: true, isBot: false },
+        { playerId: 'p2', displayName: 'Bob', handCount: 3, connected: true, isBot: false },
       ];
 
       useSessionStore.getState().updatePlayers(initialPlayers);
@@ -163,10 +193,13 @@ describe('sessionStore', () => {
       useSessionStore.getState().setConnectionStatus('connected');
       useSessionStore.getState().setPlayerId('player-123');
       useSessionStore.getState().setPlayerName('Alice');
+      useSessionStore.getState().setReconnectToken('token-abc');
       useSessionStore.getState().setRoom({
         roomId: 'ABC123',
         hostId: 'player-123',
-        players: [{ playerId: 'player-123', handCount: 5, connected: true, isBot: false }],
+        players: [{ playerId: 'player-123', displayName: 'Alice', handCount: 5, connected: true, isBot: false }],
+        maxPlayers: 4,
+        isStarted: false,
       });
       useSessionStore.getState().setError('Some error');
 
@@ -179,6 +212,7 @@ describe('sessionStore', () => {
       expect(state.roomId).toBeNull();
       expect(state.playerId).toBeNull();
       expect(state.playerName).toBeNull();
+      expect(state.reconnectToken).toBeNull();
       expect(state.players).toEqual([]);
       expect(state.isHost).toBe(false);
       expect(state.error).toBeNull();

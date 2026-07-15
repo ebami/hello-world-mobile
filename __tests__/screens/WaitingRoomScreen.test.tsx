@@ -15,11 +15,13 @@ jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
 describe('WaitingRoomScreen', () => {
   const mockRoom: RoomInfo = {
     roomId: 'ABC123',
-    hostId: 'player-1',
+    hostId: 'id-1',
     players: [
-      { playerId: 'player-1', handCount: 0, connected: true, isBot: false },
-      { playerId: 'player-2', handCount: 0, connected: true, isBot: false },
+      { playerId: 'id-1', displayName: 'Alice', handCount: 0, connected: true, isBot: false },
+      { playerId: 'id-2', displayName: 'Bob', handCount: 0, connected: true, isBot: false },
     ],
+    maxPlayers: 4,
+    isStarted: false,
   };
 
   const mockTransport = {
@@ -34,8 +36,8 @@ describe('WaitingRoomScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useSessionStore.getState().reset();
-    useSessionStore.getState().setPlayerId('player-1');
-    useSessionStore.getState().setPlayerName('player-1'); // playerName used for isHost check
+    useSessionStore.getState().setPlayerId('id-1'); // opaque id decides host
+    useSessionStore.getState().setPlayerName('Alice');
   });
 
   describe('rendering', () => {
@@ -106,8 +108,9 @@ describe('WaitingRoomScreen', () => {
       );
 
       await waitFor(() => {
-        expect(getByText(/player-1/)).toBeTruthy();
-        expect(getByText(/player-2/)).toBeTruthy();
+        // The list renders display names, not opaque ids.
+        expect(getByText(/Alice/)).toBeTruthy();
+        expect(getByText(/Bob/)).toBeTruthy();
       });
     });
 

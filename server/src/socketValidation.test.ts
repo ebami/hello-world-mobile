@@ -59,7 +59,9 @@ function connect(): Promise<ClientSocket> {
 }
 
 interface AckResult {
-  room: unknown;
+  // Create/join acknowledge with a RoomSession (room + opaque identity + token);
+  // typed as unknown here since these tests also fire malformed requests.
+  session: unknown;
   error: { code?: string; message?: string } | undefined;
 }
 
@@ -70,8 +72,8 @@ function emitWithAck(
   payload: unknown,
 ): Promise<AckResult> {
   return new Promise((resolve) => {
-    client.emit(event, payload, (room: unknown, error: AckResult['error']) =>
-      resolve({ room, error }),
+    client.emit(event, payload, (session: unknown, error: AckResult['error']) =>
+      resolve({ session, error }),
     );
   });
 }
@@ -85,9 +87,14 @@ const validCreate = { playerName: 'Alice' };
 
 /** Prove the server is still alive and answering after a bad request. */
 async function expectServerResponsive(client: ClientSocket): Promise<void> {
-  const { room, error } = await emitWithAck(client, 'create_room', validCreate);
+  const { session, error } = await emitWithAck(client, 'create_room', validCreate);
   expect(error).toBeUndefined();
-  expect(room).toMatchObject({ hostId: 'Alice' });
+  // A healthy create returns a RoomSession whose room lists the display name.
+  expect(session).toMatchObject({
+    playerId: expect.any(String),
+    reconnectToken: expect.any(String),
+    room: { players: [{ displayName: 'Alice' }] },
+  });
 }
 
 // ---- tests ---------------------------------------------------------------
@@ -96,7 +103,7 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
   it('rejects create_room with a null payload without crashing', async () => {
     const client = await connect();
 
-    const { room, error } = await emitWithAck(client, 'create_room', null);
+    const { session: room, error } = await emitWithAck(client, 'create_room', null);
 
     expect(room).toBeNull();
     expect(error?.code).toBe('INVALID_PAYLOAD');
@@ -107,7 +114,7 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
     const client = await connect();
 
     for (const bad of ['a string', 42, ['array'], true]) {
-      const { room, error } = await emitWithAck(client, 'create_room', bad);
+      const { session: room, error } = await emitWithAck(client, 'create_room', bad);
       expect(room).toBeNull();
       expect(error?.code).toBe('INVALID_PAYLOAD');
     }
@@ -139,7 +146,7 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
   it('rejects join_room with a malformed room code', async () => {
     const client = await connect();
 
-    const { room, error } = await emitWithAck(client, 'join_room', {
+    const { session: room, error } = await emitWithAck(client, 'join_room', {
       roomId: 'lower!!',
       playerName: 'Bob',
     });
@@ -152,7 +159,7 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
   it('returns ROOM_NOT_FOUND for a well-formed but unknown room code', async () => {
     const client = await connect();
 
-    const { room, error } = await emitWithAck(client, 'join_room', {
+    const { session: room, error } = await emitWithAck(client, 'join_room', {
       roomId: 'ZZZZZZ',
       playerName: 'Bob',
     });
@@ -179,7 +186,7 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
     const client = await connect();
 
     for (const maxPlayers of [-1, 2.5, NaN, 999]) {
-      const { room, error } = await emitWithAck(client, 'create_room', {
+      const { session: room, error } = await emitWithAck(client, 'create_room', {
         playerName: 'Alice',
         maxPlayers,
       });
@@ -193,7 +200,7 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
   it('rejects unknown fields (strict schemas)', async () => {
     const client = await connect();
 
-    const { room, error } = await emitWithAck(client, 'create_room', {
+    const { session: room, error } = await emitWithAck(client, 'create_room', {
       playerName: 'Alice',
       isAdmin: true,
     });
@@ -237,11 +244,12 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
 
   it('supports the full valid create + join flow', async () => {
     const host = await connect();
-    const { room } = await emitWithAck(host, 'create_room', {
+    const { session } = await emitWithAck(host, 'create_room', {
       playerName: 'Alice',
       maxPlayers: 2,
     });
-    const roomId = (room as { roomId: string }).roomId;
+    const hostSession = session as { room: { roomId: string } };
+    const roomId = hostSession.room.roomId;
     expect(roomId).toMatch(/^[A-Z0-9]{6}$/);
 
     const guest = await connect();
@@ -250,7 +258,56 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
       playerName: 'Bob',
     });
     expect(joined.error).toBeUndefined();
-    expect((joined.room as { players: unknown[] }).players).toHaveLength(2);
+    const guestSession = joined.session as { room: { players: unknown[] } };
+    expect(guestSession.room.players).toHaveLength(2);
+  });
+
+  it('issues an opaque identity, host id, and a room-scoped session (MFP-03)', async () => {
+    const client = await connect();
+    const { session, error } = await emitWithAck(client, 'create_room', validCreate);
+    expect(error).toBeUndefined();
+
+    const s = session as {
+      room: {
+        hostId: string;
+        players: { playerId: string; displayName: string }[];
+      };
+      playerId: string;
+      reconnectToken: string;
+      expiresAt: string;
+    };
+
+    // Identity is opaque — never the display name — and the host id matches it.
+    expect(s.playerId).not.toBe('Alice');
+    expect(s.room.hostId).toBe(s.playerId);
+    expect(s.room.hostId).not.toBe('Alice');
+    expect(s.room.players[0].displayName).toBe('Alice');
+    expect(s.room.players[0].playerId).toBe(s.playerId);
+
+    // A signed, expiring reconnect token is returned and is NOT part of the
+    // public room state.
+    expect(typeof s.reconnectToken).toBe('string');
+    expect(s.reconnectToken.length).toBeGreaterThan(0);
+    expect(new Date(s.expiresAt).getTime()).toBeGreaterThan(Date.now());
+    expect(JSON.stringify(s.room)).not.toContain(s.reconnectToken);
+  });
+
+  it('never writes the reconnect token to the server logs', async () => {
+    const logs: string[] = [];
+    const spy = jest
+      .spyOn(console, 'log')
+      .mockImplementation((...args: unknown[]) => {
+        logs.push(args.map(String).join(' '));
+      });
+    try {
+      const client = await connect();
+      const { session } = await emitWithAck(client, 'create_room', validCreate);
+      const token = (session as { reconnectToken: string }).reconnectToken;
+      expect(token.length).toBeGreaterThan(0);
+      expect(logs.some((line) => line.includes(token))).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('stays responsive after a burst of malformed requests', async () => {

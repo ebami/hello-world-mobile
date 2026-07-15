@@ -3,7 +3,7 @@
  */
 
 import { roomManager } from './roomManager';
-import { handleGameAction } from './gameHandler';
+import { handleGameAction, startGame } from './gameHandler';
 import { playCardsCommandSchema } from './validation/schemas';
 import type { Card, GameState, TypedServer, TypedSocket } from './types';
 
@@ -337,8 +337,9 @@ describe('GameHandler - server-authoritative play_cards (MFP-02)', () => {
     resetRoomManager();
   });
 
-  // Seed a room where Alice (seat 0) holds `aliceHand`, it is her turn, and the
-  // discard top is K♠. Returns a mock io/socket that records emitted events.
+  // Seed a room where Alice (seat 0, opaque id 'h') holds `aliceHand`, it is her
+  // turn, and the discard top is K♠. The mock socket authenticates as 'h' on the
+  // same connection ('s1') recorded at room creation, so authorization passes.
   function setup(aliceHand: Card[], top: Card = TOP_KS) {
     const room = roomManager.createRoom('h', 'Alice', 's1');
     const roomId = room.roomId;
@@ -355,7 +356,7 @@ describe('GameHandler - server-authoritative play_cards (MFP-02)', () => {
     const emitted: Array<[string, ...unknown[]]> = [];
     const socket = {
       id: 's1',
-      data: { playerId: 'Alice', playerName: 'Alice', roomId },
+      data: { playerId: 'h', playerName: 'Alice', roomId },
       emit: (event: string, ...args: unknown[]) => {
         emitted.push([event, ...args]);
       },
@@ -455,5 +456,155 @@ describe('GameHandler - server-authoritative play_cards (MFP-02)', () => {
     expect(
       playCardsCommandSchema.safeParse({ cardIds: ['A♠'], declaredSuit: '♥' }).success,
     ).toBe(true);
+  });
+});
+
+describe('GameHandler - command authorization (MFP-03)', () => {
+  const TOP_KS: Card = { id: 'K♠', suit: '♠', rank: 'K' };
+  const ALICE_HAND: Card[] = [{ id: 'K♥', suit: '♥', rank: 'K' }];
+  const BOB_CARD: Card = { id: 'Q♦', suit: '♦', rank: 'Q' };
+
+  const io = { to: () => ({ emit: () => undefined }) } as unknown as TypedServer;
+
+  beforeEach(() => {
+    resetRoomManager();
+  });
+
+  // A room with host Alice (id 'h', socket 's1') and Bob (id 'p2', socket 's2'),
+  // a game in progress, and it is Alice's turn.
+  function seedRoom() {
+    const room = roomManager.createRoom('h', 'Alice', 's1');
+    const roomId = room.roomId;
+    roomManager.joinRoom(roomId, 'p2', 'Bob', 's2');
+    roomManager.setGameState(
+      roomId,
+      createMockGameState({
+        players: [ALICE_HAND, [BOB_CARD]],
+        discardPile: [TOP_KS],
+        currentPlayer: 0,
+      }),
+    );
+    return roomId;
+  }
+
+  function makeSocket(
+    id: string,
+    data: { playerId?: string; playerName?: string; roomId: string | null },
+  ) {
+    const emitted: Array<[string, ...unknown[]]> = [];
+    const socket = {
+      id,
+      data,
+      emit: (event: string, ...args: unknown[]) => emitted.push([event, ...args]),
+    } as unknown as TypedSocket;
+    return { socket, emitted };
+  }
+
+  const errors = (emitted: Array<[string, ...unknown[]]>) =>
+    emitted.filter(([ev]) => ev === 'error').map(([, msg]) => msg);
+
+  it('rejects a command from a socket with no authenticated session', () => {
+    const roomId = seedRoom();
+    const { socket, emitted } = makeSocket('s1', { roomId }); // no playerId
+    handleGameAction(io, socket, roomId, 'draw_card');
+    expect(errors(emitted)).toContain('No authenticated session');
+  });
+
+  it('rejects a command whose socket room state does not match the target room', () => {
+    const roomId = seedRoom();
+    const { socket, emitted } = makeSocket('s1', {
+      playerId: 'h',
+      playerName: 'Alice',
+      roomId: 'OTHER1',
+    });
+    handleGameAction(io, socket, roomId, 'draw_card');
+    expect(errors(emitted)).toContain('Not in this room');
+  });
+
+  it('rejects a command from a socket whose player is not a member', () => {
+    const roomId = seedRoom();
+    const { socket, emitted } = makeSocket('sX', {
+      playerId: 'stranger',
+      playerName: 'Mallory',
+      roomId,
+    });
+    handleGameAction(io, socket, roomId, 'draw_card');
+    expect(errors(emitted)).toContain('Not a member of this room');
+  });
+
+  it('rejects a stale socket after the player mapping has been replaced', () => {
+    const roomId = seedRoom();
+    // Alice reconnects on a new socket; 's1' is now stale.
+    roomManager.setSocketId(roomId, 'h', 's-new');
+    const { socket, emitted } = makeSocket('s1', {
+      playerId: 'h',
+      playerName: 'Alice',
+      roomId,
+    });
+    handleGameAction(io, socket, roomId, 'draw_card');
+    expect(errors(emitted)).toContain('Session no longer active on this connection');
+  });
+
+  it('authorizes the current socket for a valid member command', () => {
+    const roomId = seedRoom();
+    const { socket, emitted } = makeSocket('s1', {
+      playerId: 'h',
+      playerName: 'Alice',
+      roomId,
+    });
+    handleGameAction(io, socket, roomId, 'draw_card');
+    expect(errors(emitted)).toEqual([]);
+  });
+
+  describe('startGame host authorization', () => {
+    it('allows the host (matched by opaque id) to start', () => {
+      const room = roomManager.createRoom('h', 'Alice', 's1');
+      const roomId = room.roomId;
+      roomManager.joinRoom(roomId, 'p2', 'Bob', 's2');
+
+      const { socket, emitted } = makeSocket('s1', {
+        playerId: 'h',
+        playerName: 'Alice',
+        roomId,
+      });
+      startGame(io, socket, roomId);
+
+      expect(errors(emitted)).toEqual([]);
+      expect(roomManager.getGameState(roomId)).not.toBeNull();
+    });
+
+    it('rejects a non-host member trying to start', () => {
+      const room = roomManager.createRoom('h', 'Alice', 's1');
+      const roomId = room.roomId;
+      roomManager.joinRoom(roomId, 'p2', 'Bob', 's2');
+
+      const { socket, emitted } = makeSocket('s2', {
+        playerId: 'p2',
+        playerName: 'Bob',
+        roomId,
+      });
+      startGame(io, socket, roomId);
+
+      expect(errors(emitted)).toContain('Only host can start game');
+      expect(roomManager.getGameState(roomId)).toBeNull();
+    });
+
+    it('cannot be fooled by a spoofed display name — identity decides host', () => {
+      const room = roomManager.createRoom('h', 'Alice', 's1');
+      const roomId = room.roomId;
+      roomManager.joinRoom(roomId, 'p2', 'Bob', 's2');
+
+      // Bob's socket lies about its display name, claiming to be 'Alice', but its
+      // opaque identity ('p2') is not the host, so the start is rejected.
+      const { socket, emitted } = makeSocket('s2', {
+        playerId: 'p2',
+        playerName: 'Alice',
+        roomId,
+      });
+      startGame(io, socket, roomId);
+
+      expect(errors(emitted)).toContain('Only host can start game');
+      expect(roomManager.getGameState(roomId)).toBeNull();
+    });
   });
 });

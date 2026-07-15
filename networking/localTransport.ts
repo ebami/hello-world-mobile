@@ -44,6 +44,7 @@ function toPublicView(state: GameState, roomId: string): PublicGameView {
     activeSuit: state.activeSuit ?? null,
     players: state.players.map((hand, idx) => ({
       playerId: idx === 0 ? 'player' : 'bot',
+      displayName: idx === 0 ? 'You' : 'Bot',
       handCount: hand.length,
       connected: true,
       isBot: idx !== 0,

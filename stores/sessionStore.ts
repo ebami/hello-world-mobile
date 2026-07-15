@@ -37,11 +37,17 @@ export interface SessionState {
   /** Current room ID (null if not in a room) */
   roomId: string | null;
   
-  /** Local player's unique identifier */
+  /** Local player's opaque, server-issued identifier (never the display name) */
   playerId: string | null;
-  
+
   /** Local player's display name */
   playerName: string | null;
+
+  /**
+   * Signed, room-scoped reconnect token issued by the server (MFP-03).
+   * Treated as a secret. Durable secure persistence is completed in MFP-04.
+   */
+  reconnectToken: string | null;
   
   /** List of players in the current room */
   players: PlayerSummary[];
@@ -68,9 +74,12 @@ export interface SessionState {
   
   /** Set the local player's ID */
   setPlayerId: (playerId: string) => void;
-  
+
   /** Set the local player's display name */
   setPlayerName: (name: string) => void;
+
+  /** Set or clear the reconnect token */
+  setReconnectToken: (token: string | null) => void;
   
   /** Set or clear the error message */
   setError: (error: string | null) => void;
@@ -91,6 +100,7 @@ const initialState = {
   roomId: null,
   playerId: null,
   playerName: null,
+  reconnectToken: null,
   players: [],
   isHost: false,
   error: null,
@@ -129,11 +139,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   setRoom: (room) => {
     const state = get();
-    // Check against both playerId and playerName since hostId uses playerName
-    const isHost = room 
-      ? (room.hostId === state.playerId || room.hostId === state.playerName)
-      : false;
-    
+    // Host is determined by stable opaque identity only — never the display
+    // name. A renamed player can never gain host permissions (MFP-03).
+    const isHost = room ? room.hostId === state.playerId : false;
+
     set(room ? {
       roomId: room.roomId,
       players: room.players,
@@ -150,6 +159,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   setPlayerName: (name) =>
     set({ playerName: name }),
+
+  setReconnectToken: (token) =>
+    set({ reconnectToken: token }),
 
   setError: (error) =>
     set({ error }),

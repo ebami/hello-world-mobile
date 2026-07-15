@@ -65,7 +65,14 @@ export interface GameState {
 // ========== Public / Private Views ==========
 
 export interface PlayerSummary {
+  /**
+   * Opaque, server-issued identity for the player. Immutable for the life of
+   * the session and independent of both the display name and the socket id.
+   * This is the only value safe to use for authorization or membership checks.
+   */
   playerId: string;
+  /** User-visible name. Presentation only — never used for authorization. */
+  displayName: string;
   handCount: number;
   connected: boolean;
   isBot: boolean;
@@ -88,6 +95,7 @@ export interface PublicGameView {
 
 export interface PrivateHandPayload {
   roomId: string;
+  /** Opaque player id of the recipient (never a display name). */
   playerId: string;
   hand: Card[];
 }
@@ -98,7 +106,7 @@ export interface PrivateHandPayload {
 export interface RoomInfo {
   /** Unique room identifier (6-character code) */
   roomId: string;
-  /** Player ID of the room host */
+  /** Opaque player ID of the room host (never a display name or socket id). */
   hostId: string;
   /** List of players in the room */
   players: PlayerSummary[];
@@ -106,6 +114,24 @@ export interface RoomInfo {
   maxPlayers: number;
   /** Whether the game has started */
   isStarted: boolean;
+}
+
+/**
+ * Result returned when a player creates or joins a room. Carries the caller's
+ * server-issued opaque {@link playerId} alongside a room-scoped, expiring
+ * reconnect token so the client can persist a stable identity. The
+ * `reconnectToken` is a signed credential — treat it as a secret and never log
+ * it. Durable secure persistence of these values is completed in MFP-04.
+ */
+export interface RoomSession {
+  /** Public room/lobby state. */
+  room: RoomInfo;
+  /** The caller's opaque, server-issued player identity. */
+  playerId: string;
+  /** Signed, room-scoped, expiring reconnect credential. Never log this. */
+  reconnectToken: string;
+  /** ISO-8601 timestamp at which {@link reconnectToken} expires. */
+  expiresAt: string;
 }
 
 /** Options for creating a new game room. */
@@ -190,11 +216,11 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   create_room: (
     options: CreateRoomOptions,
-    callback: (room: RoomInfo | null, error?: ProtocolError) => void,
+    callback: (session: RoomSession | null, error?: ProtocolError) => void,
   ) => void;
   join_room: (
     options: JoinRoomOptions,
-    callback: (room: RoomInfo | null, error?: ProtocolError) => void,
+    callback: (session: RoomSession | null, error?: ProtocolError) => void,
   ) => void;
   leave_room: () => void;
   start_game: () => void;

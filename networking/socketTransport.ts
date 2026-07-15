@@ -12,7 +12,7 @@ import type {
   GameAction,
   TransportCallbacks,
   ConnectionStatus,
-  RoomInfo,
+  RoomSession,
   CreateRoomOptions,
   JoinRoomOptions,
 } from './types';
@@ -144,24 +144,24 @@ export class SocketTransport implements GameTransport {
     });
   }
 
-  async createRoom(options: CreateRoomOptions): Promise<RoomInfo> {
+  async createRoom(options: CreateRoomOptions): Promise<RoomSession> {
     return new Promise((resolve, reject) => {
       if (!this.socket?.connected) {
         reject(new Error('Not connected to server'));
         return;
       }
 
-      this.socket.emit('create_room', options, (room, error) => {
-        if (error || !room) {
+      this.socket.emit('create_room', options, (session, error) => {
+        if (error || !session) {
           reject(new Error(error?.message ?? 'Failed to create room'));
         } else {
-          resolve(room);
+          resolve(session);
         }
       });
     });
   }
 
-  async joinRoom(options: JoinRoomOptions): Promise<RoomInfo> {
+  async joinRoom(options: JoinRoomOptions): Promise<RoomSession> {
     return new Promise((resolve, reject) => {
       if (!this.socket?.connected) {
         console.log('[SocketTransport] joinRoom failed: not connected');
@@ -170,13 +170,14 @@ export class SocketTransport implements GameTransport {
       }
 
       console.log('[SocketTransport] Sending join_room:', options);
-      this.socket.emit('join_room', options, (room, error) => {
-        if (error || !room) {
+      // Never log the session — it carries a signed reconnect token.
+      this.socket.emit('join_room', options, (session, error) => {
+        if (error || !session) {
           console.log('[SocketTransport] joinRoom error:', error?.code);
           reject(new Error(error?.message ?? 'Failed to join room'));
         } else {
-          console.log('[SocketTransport] joinRoom success:', room);
-          resolve(room);
+          console.log('[SocketTransport] joinRoom success:', session.room.roomId);
+          resolve(session);
         }
       });
     });

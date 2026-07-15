@@ -193,25 +193,30 @@ describe('SocketTransport', () => {
       ).rejects.toThrow('Not connected to server');
     });
 
-    it('should emit create_room event and resolve with room info', async () => {
-      const mockRoom = { roomId: 'ABC123', hostId: 'p1', players: [] };
+    it('should emit create_room event and resolve with the room session', async () => {
+      const mockSession = {
+        room: { roomId: 'ABC123', hostId: 'id-1', players: [], maxPlayers: 4, isStarted: false },
+        playerId: 'id-1',
+        reconnectToken: 'token-abc',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      };
 
       mockSocket.emit.mockImplementation(
-        (event: string, _data: unknown, callback: (room: typeof mockRoom) => void) => {
+        (event: string, _data: unknown, callback: (session: typeof mockSession) => void) => {
           if (event === 'create_room') {
-            callback(mockRoom);
+            callback(mockSession);
           }
         }
       );
 
-      const room = await transport.createRoom({ playerName: 'Alice' });
+      const session = await transport.createRoom({ playerName: 'Alice' });
 
       expect(mockSocket.emit).toHaveBeenCalledWith(
         'create_room',
         { playerName: 'Alice' },
         expect.any(Function)
       );
-      expect(room).toEqual(mockRoom);
+      expect(session).toEqual(mockSession);
     });
   });
 
@@ -230,29 +235,34 @@ describe('SocketTransport', () => {
       mockSocket.connected = false;
 
       await expect(
-        transport.joinRoom({ roomCode: 'ABC123', playerName: 'Bob' })
+        transport.joinRoom({ roomId: 'ABC123', playerName: 'Bob' })
       ).rejects.toThrow('Not connected to server');
     });
 
-    it('should emit join_room event and resolve with room info', async () => {
-      const mockRoom = { roomId: 'ABC123', hostId: 'p1', players: [] };
+    it('should emit join_room event and resolve with the room session', async () => {
+      const mockSession = {
+        room: { roomId: 'ABC123', hostId: 'id-1', players: [], maxPlayers: 4, isStarted: false },
+        playerId: 'id-2',
+        reconnectToken: 'token-bob',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      };
 
       mockSocket.emit.mockImplementation(
-        (event: string, _data: unknown, callback: (room: typeof mockRoom, error: string | null) => void) => {
+        (event: string, _data: unknown, callback: (session: typeof mockSession, error: string | null) => void) => {
           if (event === 'join_room') {
-            callback(mockRoom, null);
+            callback(mockSession, null);
           }
         }
       );
 
-      const room = await transport.joinRoom({ roomCode: 'ABC123', playerName: 'Bob' });
+      const session = await transport.joinRoom({ roomId: 'ABC123', playerName: 'Bob' });
 
       expect(mockSocket.emit).toHaveBeenCalledWith(
         'join_room',
-        { roomCode: 'ABC123', playerName: 'Bob' },
+        { roomId: 'ABC123', playerName: 'Bob' },
         expect.any(Function)
       );
-      expect(room).toEqual(mockRoom);
+      expect(session).toEqual(mockSession);
     });
 
     it('should reject when join fails', async () => {

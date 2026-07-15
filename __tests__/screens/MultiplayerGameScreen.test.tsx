@@ -35,8 +35,8 @@ describe('MultiplayerGameScreen', () => {
     drawPressure: 0,
     hasPlayed: [false, false],
     players: [
-      { playerId: 'player-1', handCount: 5, connected: true, isBot: false },
-      { playerId: 'player-2', handCount: 5, connected: true, isBot: false },
+      { playerId: 'player-1', displayName: 'Alice', handCount: 5, connected: true, isBot: false },
+      { playerId: 'player-2', displayName: 'Bob', handCount: 5, connected: true, isBot: false },
     ],
   };
 

@@ -153,12 +153,17 @@ describe('LobbyScreen', () => {
     it('should call createRoom when connected with valid name', async () => {
       useSessionStore.getState().setConnectionStatus('connected');
 
-      const mockRoom = { roomId: 'ABC123', hostId: 'p1', players: [] };
+      const mockSession = {
+        room: { roomId: 'ABC123', hostId: 'id-1', players: [], maxPlayers: 4, isStarted: false },
+        playerId: 'id-1',
+        reconnectToken: 'token-abc',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      };
       const mockTransportInstance = {
         connect: jest.fn().mockResolvedValue(undefined),
         disconnect: jest.fn(),
         setCallbacks: jest.fn(),
-        createRoom: jest.fn().mockResolvedValue(mockRoom),
+        createRoom: jest.fn().mockResolvedValue(mockSession),
         joinRoom: jest.fn(),
       };
 

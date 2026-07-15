@@ -8,6 +8,7 @@ export type {
   PublicGameView,
   PrivateHandPayload,
   RoomInfo,
+  RoomSession,
   CreateRoomOptions,
   JoinRoomOptions,
   GameActionType,
