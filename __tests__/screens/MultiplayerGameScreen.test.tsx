@@ -21,8 +21,8 @@ jest.mock('../../game', () => ({
 }));
 
 describe('MultiplayerGameScreen', () => {
-  const mockCard: Card = { suit: 'hearts', rank: '5' };
-  const mockCard2: Card = { suit: 'hearts', rank: '6' };
+  const mockCard: Card = { id: '5♥', suit: '♥', rank: '5' };
+  const mockCard2: Card = { id: '6♥', suit: '♥', rank: '6' };
   
   const mockInitialState: PublicGameView = {
     roomId: 'ABC123',

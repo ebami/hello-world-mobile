@@ -145,6 +145,24 @@ npm run validate:env   # builds + validates the server configuration
 The server refuses to start, and a production client build fails to resolve its
 URL, if required configuration is missing or points at localhost.
 
+## Release Verification
+
+One deterministic command proves the whole system is healthy before release
+(MFP-08):
+
+```bash
+npm run verify
+```
+
+It runs, in order: build the shared package → root TypeScript typecheck → build
+the server → server tests (real Socket.IO integration + security regressions) →
+client tests → production web export. Any failure exits non-zero.
+
+Individual gates are also available: `npm run typecheck`, `npm run test:server`,
+`npm run test:client`, `npm run build:core`, `npm run build:server`,
+`npm run build:web`. From a clean checkout, `npm ci && npm run verify` should be
+green.
+
 ## How to Play
 
 ### Objective

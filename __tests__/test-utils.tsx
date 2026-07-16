@@ -8,7 +8,7 @@
 import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react-native';
 import type { Card, PlayerSummary, PublicGameView, PrivateHandPayload } from '../game/types';
-import type { RoomInfo, GameTransport, TransportCallbacks, ConnectionStatus } from '../networking/types';
+import type { RoomInfo, GameTransport } from '../networking/types';
 
 /**
  * Custom render function that can be extended with providers
@@ -63,7 +63,7 @@ export const testData = {
    * Create a test card
    */
   card: (overrides: Partial<Card> = {}): Card => ({
-    suit: 'hearts',
+    suit: '♥',
     rank: '5',
     id: `card-${Math.random().toString(36).slice(2, 9)}`,
     ...overrides,
@@ -140,11 +140,11 @@ export const testData = {
  */
 export function createMockTransport(
   overrides: Partial<GameTransport> = {}
-): jest.Mocked<GameTransport> {
+): GameTransport {
   return {
     connect: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn(),
-    getConnectionStatus: jest.fn().mockReturnValue('connected' as ConnectionStatus),
+    getConnectionStatus: jest.fn().mockReturnValue('connected'),
     sendAction: jest.fn(),
     setCallbacks: jest.fn(),
     ...overrides,

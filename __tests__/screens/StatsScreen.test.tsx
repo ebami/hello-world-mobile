@@ -10,7 +10,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react-native';
-import StatsScreen from '../../screens/StatsScreen';
+import StatsScreen, { formatLastPlayed } from '../../screens/StatsScreen';
 
 // Mock the haptics module
 jest.mock('../../utils/haptics', () => ({
@@ -259,10 +259,9 @@ describe('StatsScreen', () => {
       expect(screen.getByText(oldDate.toLocaleDateString())).toBeTruthy();
     });
 
-    it('shows "Yesterday" for games played yesterday', () => {
+    it('shows "Yesterday" for a game played on the previous calendar day', () => {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      yesterday.setHours(12, 0, 0, 0); // Set to noon yesterday
       mockState = createMockState({ lastPlayed: yesterday.toISOString() });
 
       render(<StatsScreen onBack={mockOnBack} />);
@@ -270,15 +269,55 @@ describe('StatsScreen', () => {
       expect(screen.getByText('Yesterday')).toBeTruthy();
     });
 
-    it('shows days ago for recent games', () => {
+    it('shows "N days ago" for recent games', () => {
       const fiveDaysAgo = new Date();
       fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-      fiveDaysAgo.setHours(12, 0, 0, 0);
       mockState = createMockState({ lastPlayed: fiveDaysAgo.toISOString() });
 
       render(<StatsScreen onBack={mockOnBack} />);
 
       expect(screen.getByText('5 days ago')).toBeTruthy();
+    });
+  });
+
+  // Deterministic boundary tests for the pure formatter — `now` is injected so
+  // there is no reliance on the wall clock or time of day (MFP-08).
+  describe('formatLastPlayed (deterministic boundaries)', () => {
+    it('returns "Never" for a null timestamp', () => {
+      expect(formatLastPlayed(null, new Date(2026, 5, 15, 9, 0))).toBe('Never');
+    });
+
+    it('returns "Just now" within a minute', () => {
+      const now = new Date(2026, 5, 15, 9, 0, 30);
+      expect(formatLastPlayed(new Date(2026, 5, 15, 9, 0, 0).toISOString(), now)).toBe('Just now');
+    });
+
+    it('returns minutes/hours ago earlier the same calendar day', () => {
+      const now = new Date(2026, 5, 15, 12, 0, 0);
+      expect(formatLastPlayed(new Date(2026, 5, 15, 11, 30, 0).toISOString(), now)).toBe('30 minutes ago');
+      expect(formatLastPlayed(new Date(2026, 5, 15, 9, 0, 0).toISOString(), now)).toBe('3 hours ago');
+    });
+
+    it('treats the previous calendar day as "Yesterday" regardless of time of day', () => {
+      // Just after midnight: a game late "yesterday" is still "Yesterday" even
+      // though only minutes of wall-clock elapsed (the old elapsed-hours bug).
+      const earlyNow = new Date(2026, 5, 15, 0, 1, 0);
+      expect(formatLastPlayed(new Date(2026, 5, 14, 23, 59, 0).toISOString(), earlyNow)).toBe('Yesterday');
+      // Late in the day: a game early "yesterday" is also "Yesterday".
+      const lateNow = new Date(2026, 5, 15, 23, 0, 0);
+      expect(formatLastPlayed(new Date(2026, 5, 14, 1, 0, 0).toISOString(), lateNow)).toBe('Yesterday');
+    });
+
+    it('counts whole calendar days for "N days ago"', () => {
+      const now = new Date(2026, 5, 15, 6, 0, 0);
+      expect(formatLastPlayed(new Date(2026, 5, 10, 20, 0, 0).toISOString(), now)).toBe('5 days ago');
+      expect(formatLastPlayed(new Date(2026, 5, 9, 20, 0, 0).toISOString(), now)).toBe('6 days ago');
+    });
+
+    it('falls back to a locale date at 7+ days', () => {
+      const now = new Date(2026, 5, 15, 6, 0, 0);
+      const old = new Date(2026, 5, 8, 20, 0, 0);
+      expect(formatLastPlayed(old.toISOString(), now)).toBe(old.toLocaleDateString());
     });
   });
 

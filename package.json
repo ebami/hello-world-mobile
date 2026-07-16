@@ -14,9 +14,15 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:client": "jest",
+    "test:server": "npm test -w hello-world-mobile-server -- --runInBand",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "build:core": "npm run build -w @hello-world/game-core",
+    "build:server": "npm run build -w hello-world-mobile-server",
+    "build:web": "expo export --platform web",
     "dev:server": "npm run build:core && npm run dev -w hello-world-mobile-server",
-    "validate:env": "npm run build:core && npm run validate:env -w hello-world-mobile-server"
+    "validate:env": "npm run build:core && npm run validate:env -w hello-world-mobile-server",
+    "verify": "npm run build:core && npm run typecheck && npm run build:server && npm run test:server && npm run test:client && npm run build:web"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

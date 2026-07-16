@@ -38,7 +38,7 @@ jest.mock('../../game/ai', () => ({
 }));
 
 function mockCard(): Card {
-  return { suit: 'hearts', rank: '5' };
+  return { id: '5♥', suit: '♥', rank: '5' };
 }
 
 function mockHand(): Card[] {

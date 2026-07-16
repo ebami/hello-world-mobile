@@ -59,9 +59,13 @@ describe('sessionToken', () => {
     it('rejects a token with a tampered signature (invalid signature)', () => {
       const { token } = signSession(PLAYER, ROOM, NOW);
       const [payload, sig] = token.split('.');
-      // Flip the last character of the signature.
-      const lastChar = sig.at(-1) === 'A' ? 'B' : 'A';
-      const tampered = `${payload}.${sig.slice(0, -1)}${lastChar}`;
+      // Flip the first byte of the decoded signature. (Flipping the final
+      // base64url character is unreliable: for a 32-byte HMAC its low bits are
+      // beyond the last byte and are dropped on decode, so the "tamper" can be a
+      // no-op — a real flake this test previously had.)
+      const sigBytes = Buffer.from(sig, 'base64url');
+      sigBytes[0] ^= 0xff;
+      const tampered = `${payload}.${sigBytes.toString('base64url')}`;
 
       expect(verifySession(tampered, ROOM, NOW + 1000)).toBeNull();
     });

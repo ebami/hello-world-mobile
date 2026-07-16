@@ -24,28 +24,48 @@ interface StatsScreenProps {
   readonly onBack: () => void;
 }
 
+/** Milliseconds in a day (for calendar-day rounding). */
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/** Local-midnight epoch for a date (strips the time-of-day component). */
+function startOfLocalDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
 /**
- * Format a date string to a readable format.
+ * Format a last-played timestamp relative to `now`.
+ *
+ * "Yesterday" and "N days ago" use explicit **local calendar-day** differences
+ * (not elapsed 24h windows), so a game played yesterday reads as "Yesterday"
+ * regardless of the current time of day. Rounding the midnight-to-midnight delta
+ * keeps it correct across daylight-saving transitions (a 23h/25h day). `now` is
+ * injectable for deterministic tests.
+ *
+ * @param isoString ISO timestamp of the last game, or null.
+ * @param now Reference time (defaults to the current time).
  */
-function formatLastPlayed(isoString: string | null): string {
+export function formatLastPlayed(isoString: string | null, now: Date = new Date()): string {
   if (!isoString) return 'Never';
-  
+
   const date = new Date(isoString);
-  const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) {
+  const calendarDayDiff = Math.round(
+    (startOfLocalDay(now) - startOfLocalDay(date)) / MS_PER_DAY,
+  );
+
+  // Same local calendar day (or a future/just-now timestamp): show intra-day
+  // relative time.
+  if (calendarDayDiff <= 0) {
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    if (diffHours === 0) {
+    if (diffHours <= 0) {
       const diffMins = Math.floor(diffMs / (1000 * 60));
       return diffMins <= 1 ? 'Just now' : `${diffMins} minutes ago`;
     }
     return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
   }
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  
+  if (calendarDayDiff === 1) return 'Yesterday';
+  if (calendarDayDiff < 7) return `${calendarDayDiff} days ago`;
+
   return date.toLocaleDateString();
 }
 
