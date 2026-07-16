@@ -24,7 +24,9 @@ import { guard, translateRoomError } from './validation/validatedHandler';
 import { newPlayerId } from './identity';
 import { signSession, verifySession } from './sessionToken';
 import { armGraceTimer, cancelGraceTimer } from './graceTimers';
-import { loadConfig } from './config';
+import { loadConfig, type ServerConfig } from './config';
+import { rateLimiter, connectionTracker } from './rateLimiter';
+import { recordMetric } from './metricsHooks';
 import type { TypedServer, TypedSocket } from './types';
 import {
   createRoomSchema,
@@ -41,6 +43,23 @@ import {
 
 /** Grace period before a transport disconnect is treated as permanent (MFP-04). */
 const DISCONNECT_GRACE_MS = 30_000;
+
+/** Rate-limit window for per-key event limits (MFP-06). */
+const RATE_WINDOW_MS = 60_000;
+/** Connection attempts allowed per IP per minute (server-owned, MFP-06). */
+const CONNECTION_ATTEMPTS_PER_MINUTE = 120;
+/**
+ * Max Socket.IO message size. Game commands are tiny (a few card ids); this
+ * rejects oversized frames at the transport before any handler runs (MFP-06).
+ */
+const MAX_HTTP_BUFFER_SIZE = 16 * 1024; // 16 KB
+
+/** Origin allow-list check: unrestricted ('*') always passes. */
+function isOriginAllowed(origin: string | undefined, allowed: string[] | '*'): boolean {
+  if (allowed === '*') return true;
+  if (!origin) return false; // a browser must send an Origin to be allow-listed
+  return allowed.includes(origin);
+}
 
 export interface SocketServer {
   app: Express;
@@ -62,12 +81,31 @@ function issueSession(playerId: string, room: RoomSession['room']): RoomSession 
   return { room, playerId, reconnectToken: token, expiresAt };
 }
 
+/** Per-command rate check keyed by the player (falls back to socket id). */
+function commandAllowed(socket: TypedSocket, config: ServerConfig): boolean {
+  const key = `cmd:${socket.data.playerId ?? socket.id}`;
+  return rateLimiter.tryConsume(key, config.maxEventsPerMinute, RATE_WINDOW_MS);
+}
+
 /** Register every client-to-server handler on a freshly connected socket. */
-function registerHandlers(io: TypedServer, socket: TypedSocket): void {
+function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerConfig): void {
   console.log(`[${timestamp()}] [Server] Client connected: ${socket.id}`);
 
   socket.on('create_room', (...args: unknown[]) => {
     guard('create_room', createRoomSchema, args, socket, (options, ack) => {
+      const ip = socket.handshake.address;
+      // Throttle room creation per IP (MFP-06).
+      if (!rateLimiter.tryConsume(`create:${ip}`, config.maxEventsPerMinute, RATE_WINDOW_MS)) {
+        recordMetric('rate_limited', { event: 'create_room' });
+        ack?.(null, makeProtocolError('RATE_LIMITED', 'Too many requests. Please slow down.'));
+        return;
+      }
+      // Hard server-owned room cap (MFP-06) — never raisable by a client.
+      if (roomManager.roomCount() >= config.maxRooms) {
+        recordMetric('capacity_rejected', { kind: 'rooms' });
+        ack?.(null, makeProtocolError('SERVER_CAPACITY_REACHED', 'The server is at capacity. Please try again later.'));
+        return;
+      }
       // Mint an opaque, server-issued identity — independent of the socket id
       // and the display name — and bind it to this connection.
       const playerId = newPlayerId();
@@ -92,12 +130,21 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
       socket.join(room.roomId);
       // Never log the reconnect token — it is a signed credential.
       console.log(`[${timestamp()}] [Server] Room created: ${room.roomId}`);
+      recordMetric('room_created');
       ack?.(issueSession(playerId, room));
     });
   });
 
   socket.on('join_room', (...args: unknown[]) => {
     guard('join_room', joinRoomSchema, args, socket, (options, ack) => {
+      const ip = socket.handshake.address;
+      // Throttle join attempts per IP — this is what bounds room-code
+      // brute-force guessing (MFP-06).
+      if (!rateLimiter.tryConsume(`join:${ip}`, config.maxEventsPerMinute, RATE_WINDOW_MS)) {
+        recordMetric('rate_limited', { event: 'join_room' });
+        ack?.(null, makeProtocolError('RATE_LIMITED', 'Too many requests. Please slow down.'));
+        return;
+      }
       // Each join gets its own opaque identity; two players sharing a display
       // name (even the same name across rooms) always get distinct ids.
       const playerId = newPlayerId();
@@ -223,32 +270,47 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
   socket.on('play_cards', (...args: unknown[]) => {
     guard('play_cards', playCardsCommandSchema, args, socket, (command) => {
       const roomId = socket.data.roomId;
-      if (roomId) {
-        handleGameAction(io, socket, roomId, 'play_cards', command, command.meta);
+      if (!roomId) return;
+      if (!commandAllowed(socket, config)) {
+        recordMetric('rate_limited', { event: 'play_cards' });
+        socket.emit('error', 'Too many requests. Please slow down.');
+        return;
       }
+      handleGameAction(io, socket, roomId, 'play_cards', command, command.meta);
     });
   });
 
   socket.on('draw_card', (...args: unknown[]) => {
     guard('draw_card', optionalCommandMetaSchema, args, socket, (meta) => {
       const roomId = socket.data.roomId;
-      if (roomId) {
-        handleGameAction(io, socket, roomId, 'draw_card', undefined, meta ?? undefined);
+      if (!roomId) return;
+      if (!commandAllowed(socket, config)) {
+        recordMetric('rate_limited', { event: 'draw_card' });
+        socket.emit('error', 'Too many requests. Please slow down.');
+        return;
       }
+      handleGameAction(io, socket, roomId, 'draw_card', undefined, meta ?? undefined);
     });
   });
 
   socket.on('declare_last_card', (...args: unknown[]) => {
     guard('declare_last_card', optionalCommandMetaSchema, args, socket, (meta) => {
       const roomId = socket.data.roomId;
-      if (roomId) {
-        handleGameAction(io, socket, roomId, 'declare_last_card', undefined, meta ?? undefined);
+      if (!roomId) return;
+      if (!commandAllowed(socket, config)) {
+        recordMetric('rate_limited', { event: 'declare_last_card' });
+        socket.emit('error', 'Too many requests. Please slow down.');
+        return;
       }
+      handleGameAction(io, socket, roomId, 'declare_last_card', undefined, meta ?? undefined);
     });
   });
 
   socket.on('disconnect', (reason) => {
     console.log(`[${timestamp()}] [Server] Client disconnected: ${socket.id}, reason: ${reason}`);
+
+    // Free the connection-concurrency slot acquired at handshake (MFP-06).
+    connectionTracker.release(socket.handshake.address);
 
     const roomId = socket.data.roomId;
     const playerId = socket.data.playerId;
@@ -291,14 +353,15 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
  * Build the Express + Socket.IO server without binding a port.
  * Call `httpServer.listen(...)` on the result to start accepting connections.
  */
-export function createSocketServer(): SocketServer {
-  // Validated configuration (MFP-07): the CORS allow-list is environment-driven
-  // rather than hard-coded. Unset origins default to '*' (dev/test convenience).
-  const config = loadConfig();
+export function createSocketServer(overrides: Partial<ServerConfig> = {}): SocketServer {
+  // Validated configuration (MFP-07). `overrides` lets tests exercise tight
+  // limits without mutating the environment. The CORS allow-list and all abuse
+  // limits are server-owned; a client can never raise them (MFP-06).
+  const config: ServerConfig = { ...loadConfig(), ...overrides };
 
   const app = express();
-  app.use(cors());
-  app.use(express.json());
+  app.use(cors({ origin: config.corsOrigins }));
+  app.use(express.json({ limit: '16kb' }));
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -306,15 +369,47 @@ export function createSocketServer(): SocketServer {
 
   const httpServer = createServer(app);
 
+  const maxTotalConnections = config.maxRooms * 2; // two players per room
+
   const io: TypedServer = new Server(httpServer, {
     cors: {
       origin: config.corsOrigins,
       methods: ['GET', 'POST'],
     },
     transports: ['websocket', 'polling'],
+    // Reject oversized frames at the transport (MFP-06).
+    maxHttpBufferSize: MAX_HTTP_BUFFER_SIZE,
   });
 
-  io.on('connection', (socket) => registerHandlers(io, socket));
+  // Connection-level abuse controls (MFP-06): origin allow-list, per-IP
+  // connection-attempt rate, and concurrency caps. Rejections surface as a
+  // stable connect_error code and never leak internal configuration. We use the
+  // socket's own remote address, not proxy headers, unless a trusted-proxy
+  // setup is explicitly configured.
+  io.use((socket, next) => {
+    const ip = socket.handshake.address;
+    const origin = socket.handshake.headers.origin;
+
+    if (!isOriginAllowed(origin, config.corsOrigins)) {
+      recordMetric('origin_rejected');
+      next(new Error('ORIGIN_NOT_ALLOWED'));
+      return;
+    }
+    if (!rateLimiter.tryConsume(`conn:${ip}`, CONNECTION_ATTEMPTS_PER_MINUTE, RATE_WINDOW_MS)) {
+      recordMetric('rate_limited', { event: 'connection' });
+      next(new Error('RATE_LIMITED'));
+      return;
+    }
+    const acquired = connectionTracker.acquire(ip, maxTotalConnections, config.maxConnectionsPerIp);
+    if (!acquired.ok) {
+      recordMetric('connection_rejected', { reason: acquired.reason });
+      next(new Error('SERVER_CAPACITY_REACHED'));
+      return;
+    }
+    next();
+  });
+
+  io.on('connection', (socket) => registerHandlers(io, socket, config));
 
   return { app, httpServer, io };
 }

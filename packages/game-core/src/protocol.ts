@@ -25,7 +25,13 @@ export type ProtocolErrorCode =
   | "NAME_TAKEN"
   // MFP-04: session resume and command versioning.
   | "SESSION_INVALID"
-  | "STALE_VERSION";
+  | "STALE_VERSION"
+  // MFP-06: abuse, capacity, payload, and origin controls.
+  | "RATE_LIMITED"
+  | "ROOM_CAPACITY_REACHED"
+  | "SERVER_CAPACITY_REACHED"
+  | "ORIGIN_NOT_ALLOWED"
+  | "PAYLOAD_TOO_LARGE";
 
 /**
  * Structured error returned through Socket.IO acknowledgement callbacks.

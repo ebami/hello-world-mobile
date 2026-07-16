@@ -424,6 +424,68 @@ describe('RoomManager', () => {
     });
   });
 
+  describe('capacity and TTL cleanup (MFP-06)', () => {
+    const mkState = () => ({
+      deck: [] as any[],
+      discardPile: [{ id: 'K♠', suit: '♠' as const, rank: 'K' as const }],
+      players: [[{ id: 'A♥', suit: '♥' as const, rank: 'A' as const }], []],
+      currentPlayer: 0,
+      direction: 1,
+      message: '',
+      lastCardCalled: [false, false],
+      drawPressure: 0,
+      hasPlayed: [false, false],
+    });
+
+    const TTLS = { emptyMs: 1000, idleLobbyMs: 1000, completedMs: 1000 };
+
+    it('reports the active room count', () => {
+      expect(roomManager.roomCount()).toBe(0);
+      roomManager.createRoom('h1', 'Alice', 's1');
+      roomManager.createRoom('h2', 'Bob', 's2');
+      expect(roomManager.roomCount()).toBe(2);
+    });
+
+    it('sweeps an idle lobby but retains an active game', () => {
+      const lobby = roomManager.createRoom('h1', 'Alice', 's1'); // stays LOBBY
+      const active = roomManager.createRoom('h2', 'Bob', 's2');
+      roomManager.joinRoom(active.roomId, 'p2', 'Carol', 's3');
+      roomManager.setGameState(active.roomId, mkState()); // → ACTIVE
+
+      const future = Date.now() + 60_000;
+      const removed = roomManager.sweepExpired(future, TTLS);
+
+      expect(removed).toContain(lobby.roomId);
+      expect(removed).not.toContain(active.roomId);
+      expect(roomManager.getRoom(lobby.roomId)).toBeNull();
+      expect(roomManager.getRoom(active.roomId)).not.toBeNull();
+    });
+
+    it('retains a recently-active lobby (not yet expired)', () => {
+      const lobby = roomManager.createRoom('h', 'Alice', 's1');
+      const removed = roomManager.sweepExpired(Date.now(), {
+        emptyMs: 60_000,
+        idleLobbyMs: 60_000,
+        completedMs: 60_000,
+      });
+      expect(removed).not.toContain(lobby.roomId);
+      expect(roomManager.getRoom(lobby.roomId)).not.toBeNull();
+    });
+
+    it('sweeps a completed room after its TTL', () => {
+      const room = roomManager.createRoom('h', 'Alice', 's1');
+      roomManager.joinRoom(room.roomId, 'p2', 'Bob', 's2');
+      roomManager.setGameState(room.roomId, mkState());
+      roomManager.completeGame(room.roomId); // → COMPLETED
+
+      const future = Date.now() + 60_000;
+      const removed = roomManager.sweepExpired(future, TTLS);
+
+      expect(removed).toContain(room.roomId);
+      expect(roomManager.getRoom(room.roomId)).toBeNull();
+    });
+  });
+
   describe('getRoom', () => {
     it('should return room info', () => {
       const created = roomManager.createRoom('id-alice', 'Alice', 'socket-1');

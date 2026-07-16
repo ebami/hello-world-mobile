@@ -33,6 +33,20 @@ interface RoomData {
    * once. Kept as an insertion-ordered list so the oldest ids can be evicted.
    */
   recentCommands: Map<string, string[]>;
+  /** Epoch ms the room was created (MFP-06). */
+  createdAt: number;
+  /** Epoch ms of the last meaningful activity, for TTL cleanup (MFP-06). */
+  lastActivityAt: number;
+}
+
+/** TTLs (ms) governing which idle/finished rooms the sweep removes (MFP-06). */
+export interface RoomTtls {
+  /** Empty rooms (no players) older than this are removed. */
+  emptyMs: number;
+  /** Idle lobbies (LOBBY phase, no recent activity) older than this are removed. */
+  idleLobbyMs: number;
+  /** Finished rooms (COMPLETED/ABANDONED) older than this are removed. */
+  completedMs: number;
 }
 
 /** How many recent command ids to retain per player for deduplication. */
@@ -78,6 +92,7 @@ class RoomManager {
       phase: 'LOBBY',
     };
 
+    const now = Date.now();
     const roomData: RoomData = {
       info: roomInfo,
       socketIds: new Map([[hostId, socketId]]),
@@ -86,6 +101,8 @@ class RoomManager {
       seatOrder: [],
       stateVersion: 0,
       recentCommands: new Map(),
+      createdAt: now,
+      lastActivityAt: now,
     };
 
     this.rooms.set(roomId, roomData);
@@ -125,6 +142,7 @@ class RoomManager {
 
     room.info.players.push(player);
     room.socketIds.set(playerId, socketId);
+    room.lastActivityAt = Date.now();
 
     console.log(`[${new Date().toISOString()}] [RoomManager] ${playerName} joined room ${roomId}`);
 
@@ -235,6 +253,7 @@ class RoomManager {
     if (!room) return;
 
     room.gameState = gameState;
+    room.lastActivityAt = Date.now();
 
     // The first time a game state is set, the game starts: freeze the seat
     // order and move LOBBY → ACTIVE. Subsequent updates never re-freeze the
@@ -344,6 +363,7 @@ class RoomManager {
     }
     room.phase = 'COMPLETED';
     room.info.phase = 'COMPLETED';
+    room.lastActivityAt = Date.now();
     return true;
   }
 
@@ -373,6 +393,7 @@ class RoomManager {
 
     room.phase = 'COMPLETED';
     room.info.phase = 'COMPLETED';
+    room.lastActivityAt = Date.now();
 
     return winnerId ? { winnerId } : null;
   }
@@ -381,6 +402,38 @@ class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) return [];
     return Array.from(room.socketIds.values());
+  }
+
+  /** Number of active rooms (for server capacity enforcement, MFP-06). */
+  roomCount(): number {
+    return this.rooms.size;
+  }
+
+  /**
+   * Remove rooms that have outlived their TTL (MFP-06). Empty rooms, idle
+   * lobbies, and finished (COMPLETED/ABANDONED) rooms are eligible; ACTIVE rooms
+   * are always retained so an in-progress game is never swept. `now` is
+   * injectable for deterministic tests. Returns the removed room ids.
+   */
+  sweepExpired(now: number, ttls: RoomTtls): string[] {
+    const removed: string[] = [];
+    for (const [roomId, room] of this.rooms) {
+      const idleMs = now - room.lastActivityAt;
+      let expired = false;
+      if (room.info.players.length === 0) {
+        expired = idleMs > ttls.emptyMs;
+      } else if (room.phase === 'LOBBY') {
+        expired = idleMs > ttls.idleLobbyMs;
+      } else if (room.phase === 'COMPLETED' || room.phase === 'ABANDONED') {
+        expired = idleMs > ttls.completedMs;
+      }
+      // ACTIVE rooms are never swept.
+      if (expired) {
+        this.rooms.delete(roomId);
+        removed.push(roomId);
+      }
+    }
+    return removed;
   }
 
   deleteRoom(roomId: string): void {

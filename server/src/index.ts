@@ -3,6 +3,7 @@
 // from tests without binding a port.
 import { createSocketServer } from './socketServer';
 import { loadConfig } from './config';
+import { roomManager } from './roomManager';
 
 // Defense-in-depth crash containment. The per-event `guard` wrapper already
 // contains all client-triggered errors; this last-resort net logs anything
@@ -35,3 +36,21 @@ httpServer.listen(config.port, () => {
     `[Server] Listening on port ${config.port} (env: ${config.nodeEnv}, log: ${config.logLevel})`,
   );
 });
+
+// Periodic room-TTL cleanup (MFP-06): remove idle lobbies, finished, and empty
+// rooms so memory cannot grow unbounded. ACTIVE rooms are always retained.
+// Installed here (runtime entry) — not in the server factory — so
+// test-constructed servers don't accumulate intervals. `.unref()` keeps it from
+// holding the process open on its own.
+const ttlMs = config.roomTtlSeconds * 1000;
+const cleanupInterval = setInterval(() => {
+  const removed = roomManager.sweepExpired(Date.now(), {
+    emptyMs: Math.min(60_000, ttlMs),
+    idleLobbyMs: ttlMs,
+    completedMs: ttlMs,
+  });
+  if (removed.length > 0) {
+    console.log(`[Server] Cleaned up ${removed.length} expired room(s)`);
+  }
+}, 60_000);
+cleanupInterval.unref();

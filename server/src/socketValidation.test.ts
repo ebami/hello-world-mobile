@@ -12,6 +12,7 @@ import type { AddressInfo } from 'net';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { createSocketServer, type SocketServer } from './socketServer';
 import { roomManager } from './roomManager';
+import { resetAbuseControls } from './rateLimiter';
 
 let server: SocketServer;
 let url: string;
@@ -35,6 +36,7 @@ afterAll((done) => {
 
 beforeEach(() => {
   (roomManager as unknown as { rooms: Map<string, unknown> }).rooms.clear();
+  resetAbuseControls();
 });
 
 afterEach(() => {
