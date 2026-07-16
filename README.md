@@ -106,6 +106,45 @@ npm run dev
 
 The server runs on `http://localhost:3001` by default.
 
+## Environment Configuration
+
+Configuration is externalized and validated (MFP-07) — no hard-coded server URL
+or embedded secrets in production builds.
+
+**Client (Expo, public — inlined into the bundle, never put secrets here):**
+
+| Variable | Purpose |
+|----------|---------|
+| `EXPO_PUBLIC_ENVIRONMENT` | `development` \| `test` \| `staging` \| `preview` \| `production` |
+| `EXPO_PUBLIC_GAME_SERVER_URL` | Game server URL. **Required and non-localhost** in staging/preview/production; defaults to `http://localhost:3001` in development. |
+| `EXPO_PUBLIC_RELEASE_VERSION` | Release version string. |
+
+Native build identifiers (`IOS_BUNDLE_IDENTIFIER`, `ANDROID_PACKAGE`,
+`EAS_PROJECT_ID`) are supplied via EAS secrets / protected build env, not tracked
+source. See `.env.example` and `eas.json` (development / preview / production
+profiles).
+
+**Server (secrets live only here — never in `EXPO_PUBLIC_*`):** `NODE_ENV`,
+`PORT`, `CORS_ORIGINS`, `LOG_LEVEL`, `ROOM_TTL_SECONDS`,
+`DISCONNECT_GRACE_SECONDS`, `MAX_ROOMS`, `MAX_CONNECTIONS_PER_IP`,
+`MAX_EVENTS_PER_MINUTE`, `SESSION_SIGNING_KEY` (**required in production**),
+`ERROR_REPORTING_DSN`, `RELEASE_VERSION`. See `server/.env.example`.
+
+**Local:** copy `.env.example` → `.env` and `server/.env.example` → `server/.env`
+(both gitignored); development defaults let you run against the local server with
+no changes.
+
+**Staging / production:** set the environment via the matching EAS profile and
+supply `EXPO_PUBLIC_GAME_SERVER_URL` (non-localhost) plus the server secrets
+through your deployment environment. Validate server config before deploy:
+
+```bash
+npm run validate:env   # builds + validates the server configuration
+```
+
+The server refuses to start, and a production client build fails to resolve its
+URL, if required configuration is missing or points at localhost.
+
 ## How to Play
 
 ### Objective

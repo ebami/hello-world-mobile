@@ -15,7 +15,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "build:core": "npm run build -w @hello-world/game-core",
-    "dev:server": "npm run build:core && npm run dev -w hello-world-mobile-server"
+    "dev:server": "npm run build:core && npm run dev -w hello-world-mobile-server",
+    "validate:env": "npm run build:core && npm run validate:env -w hello-world-mobile-server"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

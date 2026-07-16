@@ -19,6 +19,7 @@ import type {
   JoinRoomOptions,
 } from './types';
 import { createSocket, disconnectSocket, type TypedSocket } from './socket';
+import { resolveServerUrlFromEnv } from './config';
 import {
   saveSession,
   loadSession,
@@ -71,7 +72,9 @@ export class SocketTransport implements GameTransport {
    * @param serverUrl - Server URL to connect to (default: localhost:3001)
    */
   constructor(serverUrl?: string) {
-    this.serverUrl = serverUrl ?? 'http://localhost:3001';
+    // An explicit URL always wins; otherwise resolve from the environment,
+    // which refuses a missing/localhost URL in production-like builds (MFP-07).
+    this.serverUrl = serverUrl ?? resolveServerUrlFromEnv();
   }
 
   /**

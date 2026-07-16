@@ -24,6 +24,7 @@ import { guard, translateRoomError } from './validation/validatedHandler';
 import { newPlayerId } from './identity';
 import { signSession, verifySession } from './sessionToken';
 import { armGraceTimer, cancelGraceTimer } from './graceTimers';
+import { loadConfig } from './config';
 import type { TypedServer, TypedSocket } from './types';
 import {
   createRoomSchema,
@@ -291,6 +292,10 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
  * Call `httpServer.listen(...)` on the result to start accepting connections.
  */
 export function createSocketServer(): SocketServer {
+  // Validated configuration (MFP-07): the CORS allow-list is environment-driven
+  // rather than hard-coded. Unset origins default to '*' (dev/test convenience).
+  const config = loadConfig();
+
   const app = express();
   app.use(cors());
   app.use(express.json());
@@ -303,7 +308,7 @@ export function createSocketServer(): SocketServer {
 
   const io: TypedServer = new Server(httpServer, {
     cors: {
-      origin: '*',
+      origin: config.corsOrigins,
       methods: ['GET', 'POST'],
     },
     transports: ['websocket', 'polling'],
