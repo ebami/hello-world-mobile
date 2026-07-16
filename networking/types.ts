@@ -15,12 +15,16 @@ export type {
   PlayerSummary,
   GameActionType,
   PlayCardsAction,
+  PlayCardsCommand,
+  CommandMetadata,
   DrawCardAction,
   DeclareLastCardAction,
   GameAction,
   RoomInfo,
   RoomPhase,
   RoomSession,
+  ResumeSessionOptions,
+  ResumeResult,
   CreateRoomOptions,
   JoinRoomOptions,
   ServerToClientEvents,
@@ -33,6 +37,7 @@ import type {
   GameAction,
   RoomInfo,
   RoomSession,
+  ResumeResult,
   CreateRoomOptions,
   JoinRoomOptions,
 } from '@hello-world/game-core';
@@ -58,10 +63,21 @@ export interface TransportCallbacks {
   onError: (error: string) => void;
   /** Called when connection status changes */
   onConnectionChange: (status: ConnectionStatus) => void;
+  /**
+   * Called after a transport reconnect successfully resumes the session
+   * (MFP-04). The payload is the authoritative snapshot the UI reconciles from.
+   * Until this fires, a reconnected transport must not be treated as a usable
+   * session.
+   */
+  onSessionResumed: (result: ResumeResult) => void;
 }
 
 /**
  * Connection status for the transport layer.
+ *
+ * `connected` means the transport is up AND (for a reconnect) the session has
+ * been resumed. After a transport drop the status returns to `connecting` while
+ * a resume is attempted, so callers never treat an unresumed reconnect as live.
  */
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 

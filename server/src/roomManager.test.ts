@@ -373,6 +373,57 @@ describe('RoomManager', () => {
     });
   });
 
+  describe('state versions and command dedup (MFP-04)', () => {
+    const mkState = () => ({
+      deck: [] as any[],
+      discardPile: [{ id: 'K♠', suit: '♠' as const, rank: 'K' as const }],
+      players: [[{ id: 'A♥', suit: '♥' as const, rank: 'A' as const }], []],
+      currentPlayer: 0,
+      direction: 1,
+      message: '',
+      lastCardCalled: [false, false],
+      drawPressure: 0,
+      hasPlayed: [false, false],
+    });
+
+    it('is version 0 in the lobby and 1 once the game starts', () => {
+      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
+      roomManager.joinRoom(room.roomId, 'id-bob', 'Bob', 'socket-2');
+      expect(roomManager.getStateVersion(room.roomId)).toBe(0);
+
+      roomManager.setGameState(room.roomId, mkState());
+      expect(roomManager.getStateVersion(room.roomId)).toBe(1);
+    });
+
+    it('bumps the version monotonically', () => {
+      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
+      roomManager.setGameState(room.roomId, mkState());
+      expect(roomManager.bumpStateVersion(room.roomId)).toBe(2);
+      expect(roomManager.bumpStateVersion(room.roomId)).toBe(3);
+      expect(roomManager.getStateVersion(room.roomId)).toBe(3);
+    });
+
+    it('records and recognizes command ids per player', () => {
+      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
+      expect(roomManager.hasSeenCommand(room.roomId, 'id-alice', 'cmd-1')).toBe(false);
+
+      roomManager.recordCommand(room.roomId, 'id-alice', 'cmd-1');
+      expect(roomManager.hasSeenCommand(room.roomId, 'id-alice', 'cmd-1')).toBe(true);
+      // Scoped per player — another player has not seen it.
+      expect(roomManager.hasSeenCommand(room.roomId, 'id-bob', 'cmd-1')).toBe(false);
+    });
+
+    it('bounds the retained command ids per player', () => {
+      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
+      // Record more than the retention bound (50); the oldest is evicted.
+      for (let i = 0; i < 60; i++) {
+        roomManager.recordCommand(room.roomId, 'id-alice', `cmd-${i}`);
+      }
+      expect(roomManager.hasSeenCommand(room.roomId, 'id-alice', 'cmd-0')).toBe(false);
+      expect(roomManager.hasSeenCommand(room.roomId, 'id-alice', 'cmd-59')).toBe(true);
+    });
+  });
+
   describe('getRoom', () => {
     it('should return room info', () => {
       const created = roomManager.createRoom('id-alice', 'Alice', 'socket-1');

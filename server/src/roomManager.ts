@@ -21,7 +21,22 @@ interface RoomData {
    * wrong hand. Empty while in LOBBY.
    */
   seatOrder: string[];
+  /**
+   * Monotonic state version (MFP-04). 0 in the lobby; set to 1 when the game
+   * starts; incremented once per accepted state-changing command. Clients use
+   * it for optimistic-concurrency (`expectedStateVersion`).
+   */
+  stateVersion: number;
+  /**
+   * Bounded set of recently-seen command ids per player (MFP-04), for
+   * idempotent command handling — a duplicate `commandId` is applied at most
+   * once. Kept as an insertion-ordered list so the oldest ids can be evicted.
+   */
+  recentCommands: Map<string, string[]>;
 }
+
+/** How many recent command ids to retain per player for deduplication. */
+const RECENT_COMMANDS_PER_PLAYER = 50;
 
 class RoomManager {
   private rooms: Map<string, RoomData> = new Map();
@@ -69,6 +84,8 @@ class RoomManager {
       gameState: null,
       phase: 'LOBBY',
       seatOrder: [],
+      stateVersion: 0,
+      recentCommands: new Map(),
     };
 
     this.rooms.set(roomId, roomData);
@@ -227,6 +244,7 @@ class RoomManager {
       room.info.phase = 'ACTIVE';
       room.info.isStarted = true;
       room.seatOrder = room.info.players.map(p => p.playerId);
+      room.stateVersion = 1; // first authoritative in-game state
     }
 
     this.updateHandCountsBySeat(room, gameState);
@@ -275,6 +293,42 @@ class RoomManager {
    */
   seatIndex(roomId: string, playerId: string): number {
     return this.rooms.get(roomId)?.seatOrder.indexOf(playerId) ?? -1;
+  }
+
+  /** Current monotonic state version (0 in the lobby). */
+  getStateVersion(roomId: string): number {
+    return this.rooms.get(roomId)?.stateVersion ?? 0;
+  }
+
+  /** Increment and return the state version after an accepted command (MFP-04). */
+  bumpStateVersion(roomId: string): number {
+    const room = this.rooms.get(roomId);
+    if (!room) return 0;
+    room.stateVersion += 1;
+    return room.stateVersion;
+  }
+
+  /**
+   * Whether a command id has already been handled for this player (MFP-04).
+   * Used to make command processing idempotent across reconnect retries.
+   */
+  hasSeenCommand(roomId: string, playerId: string, commandId: string): boolean {
+    return this.rooms.get(roomId)?.recentCommands.get(playerId)?.includes(commandId) ?? false;
+  }
+
+  /**
+   * Record a handled command id for a player, evicting the oldest once the
+   * per-player retention bound is exceeded (bounded memory).
+   */
+  recordCommand(roomId: string, playerId: string, commandId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    const ids = room.recentCommands.get(playerId) ?? [];
+    ids.push(commandId);
+    while (ids.length > RECENT_COMMANDS_PER_PLAYER) {
+      ids.shift();
+    }
+    room.recentCommands.set(playerId, ids);
   }
 
   /**

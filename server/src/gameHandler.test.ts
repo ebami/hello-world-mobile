@@ -765,3 +765,95 @@ describe('GameHandler - lifecycle, seat mapping, and forfeits (MFP-05)', () => {
     expect(overs[0].args[1]).toBe('Bob wins by forfeit!');
   });
 });
+
+describe('GameHandler - command versioning and deduplication (MFP-04)', () => {
+  const KH: Card = { id: 'K♥', suit: '♥', rank: 'K' };
+  const TWO_H: Card = { id: '2♥', suit: '♥', rank: '2' };
+  const QD: Card = { id: 'Q♦', suit: '♦', rank: 'Q' };
+  const TOP_KS: Card = { id: 'K♠', suit: '♠', rank: 'K' };
+
+  const io = { to: () => ({ emit: () => undefined }) } as unknown as TypedServer;
+
+  beforeEach(() => {
+    resetRoomManager();
+  });
+
+  function makeSocket(
+    id: string,
+    data: { playerId?: string; playerName?: string; roomId: string | null },
+  ) {
+    const emitted: Array<[string, ...unknown[]]> = [];
+    const socket = {
+      id,
+      data,
+      emit: (event: string, ...args: unknown[]) => emitted.push([event, ...args]),
+    } as unknown as TypedSocket;
+    return { socket, emitted };
+  }
+
+  const errors = (emitted: Array<[string, ...unknown[]]>) =>
+    emitted.filter(([ev]) => ev === 'error').map(([, msg]) => msg);
+
+  // Active room, Alice (id 'h', socket 's1', seat 0) to move; state version 1.
+  function seedActive() {
+    const room = roomManager.createRoom('h', 'Alice', 's1');
+    const roomId = room.roomId;
+    roomManager.joinRoom(roomId, 'p2', 'Bob', 's2');
+    roomManager.setGameState(
+      roomId,
+      createMockGameState({
+        players: [[KH, TWO_H], [QD]],
+        discardPile: [TOP_KS],
+        currentPlayer: 0,
+      }),
+    );
+    return roomId;
+  }
+
+  it('increments the state version once per accepted command', () => {
+    const roomId = seedActive();
+    expect(roomManager.getStateVersion(roomId)).toBe(1);
+    const { socket } = makeSocket('s1', { playerId: 'h', playerName: 'Alice', roomId });
+
+    handleGameAction(io, socket, roomId, 'draw_card'); // no meta still bumps
+
+    expect(roomManager.getStateVersion(roomId)).toBe(2);
+  });
+
+  it('applies a duplicate commandId at most once', () => {
+    const roomId = seedActive();
+    const { socket } = makeSocket('s1', { playerId: 'h', playerName: 'Alice', roomId });
+    const meta = { commandId: 'cmd-1', expectedStateVersion: 1 };
+
+    handleGameAction(io, socket, roomId, 'draw_card', undefined, meta);
+    const versionAfterFirst = roomManager.getStateVersion(roomId); // 2
+    const handAfterFirst = roomManager.getGameState(roomId)!.players[0].length;
+
+    // Replay the identical command (as a retry would after reconnect).
+    handleGameAction(io, socket, roomId, 'draw_card', undefined, {
+      commandId: 'cmd-1',
+      expectedStateVersion: 1,
+    });
+
+    expect(roomManager.getStateVersion(roomId)).toBe(versionAfterFirst); // no re-bump
+    expect(roomManager.getGameState(roomId)!.players[0].length).toBe(handAfterFirst); // not drawn twice
+  });
+
+  it('rejects a stale expectedStateVersion without mutating state', () => {
+    const roomId = seedActive();
+    const { socket, emitted } = makeSocket('s1', { playerId: 'h', playerName: 'Alice', roomId });
+    const before = roomManager.getGameState(roomId)!.players[0].length;
+
+    // Current version is 1; a command claiming version 0 is stale.
+    handleGameAction(io, socket, roomId, 'draw_card', undefined, {
+      commandId: 'stale-1',
+      expectedStateVersion: 0,
+    });
+
+    expect(errors(emitted)).toContain('State version mismatch');
+    expect(roomManager.getStateVersion(roomId)).toBe(1); // unchanged
+    expect(roomManager.getGameState(roomId)!.players[0].length).toBe(before); // no draw
+    // A rejected command id is not recorded, so a corrected retry can proceed.
+    expect(roomManager.hasSeenCommand(roomId, 'h', 'stale-1')).toBe(false);
+  });
+});

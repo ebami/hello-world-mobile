@@ -27,6 +27,14 @@ jest.mock('../../networking/socket', () => ({
   disconnectSocket: jest.fn(),
 }));
 
+// Mock the persistence layer so we can assert save/clear without touching storage.
+jest.mock('../../stores/secureTokenStore', () => ({
+  saveSession: jest.fn().mockResolvedValue(undefined),
+  loadSession: jest.fn().mockResolvedValue(null),
+  clearSession: jest.fn().mockResolvedValue(undefined),
+}));
+import { saveSession, clearSession } from '../../stores/secureTokenStore';
+
 // Mock __DEV__ global
 (global as unknown as { __DEV__: boolean }).__DEV__ = false;
 
@@ -295,16 +303,23 @@ describe('SocketTransport', () => {
       await transport.connect();
     });
 
-    it('should emit play_cards as an id-based command (no card rank/suit)', () => {
+    it('should emit play_cards as an id-based command (no card rank/suit) with metadata', () => {
       transport.sendAction({
         type: 'PLAY_CARDS',
         cards: [{ id: '5♥', rank: '5', suit: '♥' }],
       });
 
-      expect(mockSocket.emit).toHaveBeenCalledWith('play_cards', {
-        cardIds: ['5♥'],
-        declaredSuit: undefined,
-      });
+      expect(mockSocket.emit).toHaveBeenCalledWith(
+        'play_cards',
+        expect.objectContaining({
+          cardIds: ['5♥'],
+          declaredSuit: undefined,
+          meta: expect.objectContaining({
+            commandId: expect.any(String),
+            expectedStateVersion: expect.any(Number),
+          }),
+        }),
+      );
     });
 
     it('should forward the declared suit when playing an Ace', () => {
@@ -314,22 +329,127 @@ describe('SocketTransport', () => {
         declaredSuit: '♥',
       });
 
-      expect(mockSocket.emit).toHaveBeenCalledWith('play_cards', {
-        cardIds: ['A♠'],
-        declaredSuit: '♥',
+      expect(mockSocket.emit).toHaveBeenCalledWith(
+        'play_cards',
+        expect.objectContaining({ cardIds: ['A♠'], declaredSuit: '♥' }),
+      );
+    });
+
+    it('should emit draw_card with command metadata', () => {
+      transport.sendAction({ type: 'DRAW_CARD' });
+
+      expect(mockSocket.emit).toHaveBeenCalledWith(
+        'draw_card',
+        expect.objectContaining({
+          commandId: expect.any(String),
+          expectedStateVersion: expect.any(Number),
+        }),
+      );
+    });
+
+    it('should emit declare_last_card with command metadata', () => {
+      transport.sendAction({ type: 'DECLARE_LAST_CARD', player: 0 });
+
+      expect(mockSocket.emit).toHaveBeenCalledWith(
+        'declare_last_card',
+        expect.objectContaining({
+          commandId: expect.any(String),
+          expectedStateVersion: expect.any(Number),
+        }),
+      );
+    });
+
+    it('echoes the latest state version as expectedStateVersion', () => {
+      // Simulate the server broadcasting a state at version 7.
+      const stateHandler = getEventHandler('game_state_update');
+      stateHandler?.({ roomId: 'test', stateVersion: 7 });
+
+      transport.sendAction({ type: 'DRAW_CARD' });
+
+      const drawCall = mockSocket.emit.mock.calls.find(([e]) => e === 'draw_card');
+      expect(drawCall?.[1]).toEqual(
+        expect.objectContaining({ expectedStateVersion: 7 }),
+      );
+    });
+  });
+
+  describe('session persistence and resume (MFP-04)', () => {
+    beforeEach(async () => {
+      mockSocket.connected = true;
+      mockSocket.on.mockImplementation((event, handler) => {
+        if (event === 'connect') setTimeout(() => handler(), 0);
+      });
+      await transport.connect();
+    });
+
+    it('persists the session on create', async () => {
+      const mockSession = {
+        room: { roomId: 'ABC123', hostId: 'id-1', players: [], maxPlayers: 2, isStarted: false },
+        playerId: 'id-1',
+        reconnectToken: 'token-abc',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      };
+      mockSocket.emit.mockImplementation(
+        (event: string, _data: unknown, cb: (s: typeof mockSession) => void) => {
+          if (event === 'create_room') cb(mockSession);
+        },
+      );
+
+      await transport.createRoom({ playerName: 'Alice' });
+
+      expect(saveSession).toHaveBeenCalledWith({
+        playerId: 'id-1',
+        roomId: 'ABC123',
+        reconnectToken: 'token-abc',
       });
     });
 
-    it('should emit draw_card event', () => {
-      transport.sendAction({ type: 'DRAW_CARD' });
-
-      expect(mockSocket.emit).toHaveBeenCalledWith('draw_card');
+    it('clears the persisted session on explicit leave', () => {
+      transport.leaveRoom();
+      expect(clearSession).toHaveBeenCalled();
     });
 
-    it('should emit declare_last_card event', () => {
-      transport.sendAction({ type: 'DECLARE_LAST_CARD', player: 0 });
+    it('resumeSession emits resume_session and resolves with the snapshot', async () => {
+      const resumeResult = {
+        room: { roomId: 'ABC123', hostId: 'id-1', players: [], maxPlayers: 2, isStarted: false },
+        state: null,
+        hand: null,
+        playerId: 'id-1',
+        reconnectToken: 'token-rotated',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+        stateVersion: 0,
+      };
+      mockSocket.emit.mockImplementation(
+        (event: string, _data: unknown, cb: (r: typeof resumeResult) => void) => {
+          if (event === 'resume_session') cb(resumeResult);
+        },
+      );
 
-      expect(mockSocket.emit).toHaveBeenCalledWith('declare_last_card');
+      const result = await transport.resumeSession({
+        playerId: 'id-1',
+        roomId: 'ABC123',
+        reconnectToken: 'token-abc',
+      });
+
+      expect(mockSocket.emit).toHaveBeenCalledWith(
+        'resume_session',
+        { playerId: 'id-1', roomId: 'ABC123', reconnectToken: 'token-abc' },
+        expect.any(Function),
+      );
+      expect(result.reconnectToken).toBe('token-rotated');
+    });
+
+    it('reports connecting (not connected) on transport reconnect until resume', () => {
+      const onConnectionChange = jest.fn();
+      transport.setCallbacks({ onConnectionChange });
+      const reconnectHandler = mockSocket.io.on.mock.calls.find(
+        ([e]: [string]) => e === 'reconnect',
+      )?.[1];
+
+      reconnectHandler?.();
+
+      expect(onConnectionChange).toHaveBeenCalledWith('connecting');
+      expect(onConnectionChange).not.toHaveBeenCalledWith('connected');
     });
   });
 

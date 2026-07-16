@@ -14,17 +14,32 @@ import { createServer, type Server as HttpServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { roomManager } from './roomManager';
-import { handleGameAction, startGame, forfeitAndComplete } from './gameHandler';
+import {
+  handleGameAction,
+  startGame,
+  forfeitAndComplete,
+  buildResumeSnapshot,
+} from './gameHandler';
 import { guard, translateRoomError } from './validation/validatedHandler';
 import { newPlayerId } from './identity';
-import { signSession } from './sessionToken';
+import { signSession, verifySession } from './sessionToken';
+import { armGraceTimer, cancelGraceTimer } from './graceTimers';
 import type { TypedServer, TypedSocket } from './types';
 import {
   createRoomSchema,
   joinRoomSchema,
   playCardsCommandSchema,
+  optionalCommandMetaSchema,
+  resumeSessionSchema,
 } from './validation/schemas';
-import { makeProtocolError, type RoomSession } from '@hello-world/game-core';
+import {
+  makeProtocolError,
+  type RoomSession,
+  type ResumeResult,
+} from '@hello-world/game-core';
+
+/** Grace period before a transport disconnect is treated as permanent (MFP-04). */
+const DISCONNECT_GRACE_MS = 30_000;
 
 export interface SocketServer {
   app: Express;
@@ -114,11 +129,68 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
     });
   });
 
+  socket.on('resume_session', (...args: unknown[]) => {
+    guard('resume_session', resumeSessionSchema, args, socket, (options, ack) => {
+      // Verify the signed token (signature, expiry, room scope) and that its
+      // player id matches the claimed identity (MFP-04). An invalid or expired
+      // token reveals nothing about the room's private state.
+      const claims = verifySession(options.reconnectToken, options.roomId);
+      if (!claims || claims.playerId !== options.playerId) {
+        ack?.(null, makeProtocolError('SESSION_INVALID', 'Invalid or expired session.'));
+        return;
+      }
+
+      const player = roomManager.getPlayer(options.roomId, options.playerId);
+      const phase = roomManager.getPhase(options.roomId);
+      // Resume only into a live session (lobby or active). A completed/abandoned
+      // game — or an explicit leave that removed the player — is not resumable,
+      // which is how an explicit leave "immediately invalidates" the session.
+      if (!player || (phase !== 'LOBBY' && phase !== 'ACTIVE')) {
+        ack?.(null, makeProtocolError('SESSION_INVALID', 'Session is no longer valid.'));
+        return;
+      }
+
+      // Rebind the player to this socket; the previous socket becomes stale and
+      // can no longer submit commands (its isCurrentSocket check now fails).
+      roomManager.setSocketId(options.roomId, options.playerId, socket.id);
+      roomManager.setPlayerConnected(options.roomId, options.playerId, true);
+      cancelGraceTimer(options.roomId, options.playerId);
+
+      socket.data.playerId = options.playerId;
+      socket.data.playerName = player.displayName;
+      socket.data.roomId = options.roomId;
+      socket.join(options.roomId);
+
+      // Rotate the reconnect token so the presented one cannot be reused.
+      const { token, expiresAt } = signSession(options.playerId, options.roomId);
+      const snapshot = buildResumeSnapshot(options.roomId, options.playerId);
+      const result: ResumeResult = {
+        room: roomManager.getRoom(options.roomId)!,
+        state: snapshot.state,
+        hand: snapshot.hand,
+        playerId: options.playerId,
+        reconnectToken: token,
+        expiresAt,
+        stateVersion: snapshot.stateVersion,
+      };
+      // Never log the rotated token.
+      console.log(`[${timestamp()}] [Server] Session resumed in room ${options.roomId}`);
+      ack?.(result);
+
+      // Let the other player observe the reconnection.
+      socket.to(options.roomId).emit('room_updated', roomManager.getRoom(options.roomId)!);
+    });
+  });
+
   socket.on('leave_room', (...args: unknown[]) => {
     guard('leave_room', null, args, socket, () => {
       const roomId = socket.data.roomId;
       const playerId = socket.data.playerId;
       if (!roomId || !playerId) return;
+
+      // An explicit leave immediately invalidates the session — cancel any
+      // pending grace timer so it cannot fire a duplicate transition (MFP-04).
+      cancelGraceTimer(roomId, playerId);
 
       if (roomManager.getPhase(roomId) === 'ACTIVE') {
         // Leaving an active game is a forfeit: the opponent wins and a single
@@ -151,25 +223,25 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
     guard('play_cards', playCardsCommandSchema, args, socket, (command) => {
       const roomId = socket.data.roomId;
       if (roomId) {
-        handleGameAction(io, socket, roomId, 'play_cards', command);
+        handleGameAction(io, socket, roomId, 'play_cards', command, command.meta);
       }
     });
   });
 
   socket.on('draw_card', (...args: unknown[]) => {
-    guard('draw_card', null, args, socket, () => {
+    guard('draw_card', optionalCommandMetaSchema, args, socket, (meta) => {
       const roomId = socket.data.roomId;
       if (roomId) {
-        handleGameAction(io, socket, roomId, 'draw_card');
+        handleGameAction(io, socket, roomId, 'draw_card', undefined, meta ?? undefined);
       }
     });
   });
 
   socket.on('declare_last_card', (...args: unknown[]) => {
-    guard('declare_last_card', null, args, socket, () => {
+    guard('declare_last_card', optionalCommandMetaSchema, args, socket, (meta) => {
       const roomId = socket.data.roomId;
       if (roomId) {
-        handleGameAction(io, socket, roomId, 'declare_last_card');
+        handleGameAction(io, socket, roomId, 'declare_last_card', undefined, meta ?? undefined);
       }
     });
   });
@@ -180,10 +252,13 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
     const roomId = socket.data.roomId;
     const playerId = socket.data.playerId;
 
-    if (roomId && playerId) {
-      // Mark player as disconnected but keep the seat; begin a grace period
-      // (MFP-05). Reliable cancellation of this timer on reconnect is completed
-      // in MFP-04.
+    // Ignore a stale socket's disconnect: if the player already resumed on a
+    // newer socket, this one is no longer current and must not disturb the live
+    // session (MFP-04).
+    if (roomId && playerId && roomManager.isCurrentSocket(roomId, playerId, socket.id)) {
+      // Mark player as disconnected but keep the seat; begin a grace period via
+      // the registry, which guarantees at most one pending timer per player and
+      // lets a successful resume cancel it reliably (MFP-04).
       roomManager.setPlayerConnected(roomId, playerId, false);
 
       const room = roomManager.getRoom(roomId);
@@ -191,9 +266,7 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
         io.to(roomId).emit('room_updated', room);
       }
 
-      // On grace expiry, resolve by phase. `.unref()` so a lone pending grace
-      // timer never keeps the process (or a test run) alive on its own.
-      setTimeout(() => {
+      armGraceTimer(roomId, playerId, DISCONNECT_GRACE_MS, () => {
         const player = roomManager.getPlayer(roomId, playerId);
         if (!player || player.connected) {
           return; // reconnected, or already removed
@@ -208,7 +281,7 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
             io.to(roomId).emit('room_updated', updatedRoom);
           }
         }
-      }, 30000).unref();
+      });
     }
   });
 }

@@ -38,6 +38,7 @@ describe('WaitingRoomScreen', () => {
     useSessionStore.getState().reset();
     useSessionStore.getState().setPlayerId('id-1'); // opaque id decides host
     useSessionStore.getState().setPlayerName('Alice');
+    useSessionStore.getState().setConnectionStatus('connected'); // Start requires a live session (MFP-04)
   });
 
   describe('rendering', () => {

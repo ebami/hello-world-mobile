@@ -187,6 +187,45 @@ describe('sessionStore', () => {
     });
   });
 
+  describe('applyResume (MFP-04)', () => {
+    const snapshot = {
+      room: {
+        roomId: 'ABC123',
+        hostId: 'id-1',
+        players: [
+          { playerId: 'id-1', displayName: 'Alice', handCount: 3, connected: true, isBot: false },
+          { playerId: 'id-2', displayName: 'Bob', handCount: 4, connected: true, isBot: false },
+        ],
+        maxPlayers: 2,
+        isStarted: true,
+        phase: 'ACTIVE' as const,
+      },
+      state: null,
+      hand: null,
+      reconnectToken: 'tok-rotated',
+      expiresAt: '2099-01-01T00:00:00.000Z',
+      stateVersion: 5,
+    };
+
+    it('reconciles identity, room, host, token, and connection from a snapshot', () => {
+      useSessionStore.getState().applyResume({ ...snapshot, playerId: 'id-1' });
+
+      const state = useSessionStore.getState();
+      expect(state.roomId).toBe('ABC123');
+      expect(state.playerId).toBe('id-1');
+      expect(state.isHost).toBe(true);
+      expect(state.reconnectToken).toBe('tok-rotated');
+      expect(state.connectionStatus).toBe('connected');
+      expect(state.players).toHaveLength(2);
+      expect(state.error).toBeNull();
+    });
+
+    it('marks isHost false when the resumed player is not the host', () => {
+      useSessionStore.getState().applyResume({ ...snapshot, playerId: 'id-2' });
+      expect(useSessionStore.getState().isHost).toBe(false);
+    });
+  });
+
   describe('reset', () => {
     it('should reset all state to initial values', () => {
       // Set various state values

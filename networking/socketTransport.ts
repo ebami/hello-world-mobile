@@ -13,10 +13,23 @@ import type {
   TransportCallbacks,
   ConnectionStatus,
   RoomSession,
+  ResumeResult,
+  CommandMetadata,
   CreateRoomOptions,
   JoinRoomOptions,
 } from './types';
 import { createSocket, disconnectSocket, type TypedSocket } from './socket';
+import {
+  saveSession,
+  loadSession,
+  clearSession,
+  type StoredSession,
+} from '../stores/secureTokenStore';
+
+/** Generate a unique-enough command id for idempotency keys (MFP-04). */
+function newCommandId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 /**
  * Socket.IO transport adapter for online multiplayer.
@@ -45,6 +58,13 @@ export class SocketTransport implements GameTransport {
   private callbacks: Partial<TransportCallbacks> = {};
   private connectionStatus: ConnectionStatus = 'disconnected';
   private readonly serverUrl: string;
+  /** Current session identity + reconnect token (MFP-04); null until create/join. */
+  private session: StoredSession | null = null;
+  /**
+   * Latest known authoritative state version (MFP-04), echoed back on every
+   * mutating command as `expectedStateVersion` for optimistic concurrency.
+   */
+  private stateVersion = 0;
 
   /**
    * Create a new SocketTransport instance.
@@ -90,6 +110,10 @@ export class SocketTransport implements GameTransport {
   }
 
   disconnect(): void {
+    // An explicit disconnect (e.g. quitting) ends the session; drop the
+    // persisted token so it cannot be resumed.
+    this.session = null;
+    void clearSession();
     disconnectSocket();
     this.socket = null;
     this.updateConnectionStatus('disconnected');
@@ -111,11 +135,18 @@ export class SocketTransport implements GameTransport {
       this.updateConnectionStatus('disconnected');
     });
 
+    // A transport reconnect is NOT yet a usable session (MFP-04). Report
+    // 'connecting' and attempt to resume; only a successful resume returns the
+    // status to 'connected'.
     this.socket.io.on('reconnect', () => {
-      this.updateConnectionStatus('connected');
+      this.updateConnectionStatus('connecting');
+      void this.attemptResume();
     });
 
     this.socket.on('game_state_update', (state) => {
+      if (typeof state.stateVersion === 'number') {
+        this.stateVersion = state.stateVersion;
+      }
       this.callbacks.onStateUpdate?.(state);
     });
 
@@ -128,6 +159,9 @@ export class SocketTransport implements GameTransport {
     });
 
     this.socket.on('game_start', (state, hand) => {
+      if (typeof state.stateVersion === 'number') {
+        this.stateVersion = state.stateVersion;
+      }
       this.callbacks.onGameStart?.(state, hand);
     });
 
@@ -155,6 +189,7 @@ export class SocketTransport implements GameTransport {
         if (error || !session) {
           reject(new Error(error?.message ?? 'Failed to create room'));
         } else {
+          this.rememberSession(session);
           resolve(session);
         }
       });
@@ -177,14 +212,121 @@ export class SocketTransport implements GameTransport {
           reject(new Error(error?.message ?? 'Failed to join room'));
         } else {
           console.log('[SocketTransport] joinRoom success:', session.room.roomId);
+          this.rememberSession(session);
           resolve(session);
         }
       });
     });
   }
 
+  /**
+   * Record and persist the session credentials from a create/join/resume
+   * result so the session can be recovered after a transport drop (MFP-04).
+   * The lobby has no game state yet, so the version resets to 0.
+   */
+  private rememberSession(session: {
+    playerId: string;
+    room: { roomId: string };
+    reconnectToken: string;
+  }): void {
+    this.session = {
+      playerId: session.playerId,
+      roomId: session.room.roomId,
+      reconnectToken: session.reconnectToken,
+    };
+    this.stateVersion = 0;
+    void saveSession(this.session);
+  }
+
+  /**
+   * Attempt to resume the session after a transport reconnect (MFP-04). Uses the
+   * in-memory session, falling back to persisted storage (e.g. after an app
+   * restart). On success the rotated token is persisted, local version tracking
+   * is restored, and the authoritative snapshot is delivered via callbacks so
+   * the UI reconciles; only then is the status reported 'connected'. On failure
+   * the caller is notified and the stale session is cleared.
+   */
+  private async attemptResume(): Promise<void> {
+    const stored = this.session ?? (await loadSession());
+    if (!stored || !this.socket) {
+      // Nothing to resume (e.g. reconnected before ever joining).
+      this.updateConnectionStatus('connected');
+      return;
+    }
+
+    this.socket.emit(
+      'resume_session',
+      {
+        roomId: stored.roomId,
+        playerId: stored.playerId,
+        reconnectToken: stored.reconnectToken,
+      },
+      (result, error) => {
+        if (error || !result) {
+          // Session could not be recovered; drop it and surface the failure.
+          this.session = null;
+          void clearSession();
+          this.callbacks.onError?.(error?.message ?? 'Could not resume session');
+          this.updateConnectionStatus('disconnected');
+          return;
+        }
+
+        // Rotate + persist the new token, restore version tracking.
+        this.rememberSession(result);
+        this.stateVersion = result.stateVersion;
+
+        // Reconcile the UI from the authoritative snapshot.
+        if (result.state) {
+          this.callbacks.onStateUpdate?.(result.state);
+        }
+        if (result.hand) {
+          this.callbacks.onHandUpdate?.(result.hand);
+        }
+        this.callbacks.onRoomUpdated?.(result.room);
+        this.callbacks.onSessionResumed?.(result);
+
+        // Only now is the session usable again.
+        this.updateConnectionStatus('connected');
+      },
+    );
+  }
+
+  /**
+   * Explicitly resume a session (e.g. on app launch with a persisted token).
+   * Resolves with the authoritative snapshot or rejects if the session is no
+   * longer valid.
+   */
+  async resumeSession(stored: StoredSession): Promise<ResumeResult> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket?.connected) {
+        reject(new Error('Not connected to server'));
+        return;
+      }
+      this.socket.emit(
+        'resume_session',
+        {
+          roomId: stored.roomId,
+          playerId: stored.playerId,
+          reconnectToken: stored.reconnectToken,
+        },
+        (result, error) => {
+          if (error || !result) {
+            reject(new Error(error?.message ?? 'Could not resume session'));
+          } else {
+            this.rememberSession(result);
+            this.stateVersion = result.stateVersion;
+            resolve(result);
+          }
+        },
+      );
+    });
+  }
+
   leaveRoom(): void {
     this.socket?.emit('leave_room');
+    // Explicit leave invalidates the session server-side; drop it locally too.
+    this.session = null;
+    void clearSession();
   }
 
   startGame(): void {
@@ -197,6 +339,15 @@ export class SocketTransport implements GameTransport {
       return;
     }
 
+    // Attach idempotency + version metadata to every mutating command (MFP-04):
+    // a fresh command id lets the server discard duplicates (e.g. a retry after
+    // reconnect), and the current state version guards against acting on stale
+    // state.
+    const meta: CommandMetadata = {
+      commandId: newCommandId(),
+      expectedStateVersion: this.stateVersion,
+    };
+
     switch (action.type) {
       case 'PLAY_CARDS':
         // Send only card IDs + the declared suit — never card rank/suit. The
@@ -204,13 +355,14 @@ export class SocketTransport implements GameTransport {
         this.socket.emit('play_cards', {
           cardIds: action.cards.map((c) => c.id),
           declaredSuit: action.declaredSuit,
+          meta,
         });
         break;
       case 'DRAW_CARD':
-        this.socket.emit('draw_card');
+        this.socket.emit('draw_card', meta);
         break;
       case 'DECLARE_LAST_CARD':
-        this.socket.emit('declare_last_card');
+        this.socket.emit('declare_last_card', meta);
         break;
     }
   }

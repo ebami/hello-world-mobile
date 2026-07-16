@@ -22,7 +22,10 @@ export type ProtocolErrorCode =
   | "ROOM_NOT_FOUND"
   | "ROOM_FULL"
   | "GAME_ALREADY_STARTED"
-  | "NAME_TAKEN";
+  | "NAME_TAKEN"
+  // MFP-04: session resume and command versioning.
+  | "SESSION_INVALID"
+  | "STALE_VERSION";
 
 /**
  * Structured error returned through Socket.IO acknowledgement callbacks.

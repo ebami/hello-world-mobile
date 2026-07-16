@@ -34,6 +34,12 @@ export const MAX_MAX_PLAYERS = 2;
 export const MAX_CARDS_PER_PLAY = 14;
 /** Card id upper bound (canonical ids look like `"10♦"` — max 3 chars). */
 const MAX_CARD_ID_LENGTH = 8;
+/** Upper bound on a client-supplied command id (MFP-04). */
+const MAX_COMMAND_ID_LENGTH = 64;
+/** Opaque ids are UUIDs (~36 chars); allow headroom without being unbounded. */
+const MAX_PLAYER_ID_LENGTH = 64;
+/** Signed tokens are short; cap generously to reject absurd inputs. */
+const MAX_TOKEN_LENGTH = 2048;
 
 // ========== Primitives ==========
 
@@ -67,10 +73,25 @@ export const joinRoomSchema = z
   .strict();
 
 /**
+ * Command metadata for idempotent, version-checked mutations (MFP-04). Optional
+ * on the wire; when present it is strictly validated.
+ */
+export const commandMetadataSchema = z
+  .object({
+    commandId: z.string().min(1).max(MAX_COMMAND_ID_LENGTH),
+    expectedStateVersion: z.number().int().min(0),
+  })
+  .strict();
+
+/** No-payload commands may carry optional {@link commandMetadataSchema}. */
+export const optionalCommandMetaSchema = commandMetadataSchema.optional();
+
+/**
  * `play_cards` command (MFP-02). The client sends only card IDs plus an
  * optional declared suit — never a card's rank or physical suit — so the
  * server derives every played card from its own authoritative hand. `.strict()`
- * rejects any attempt to smuggle rank/suit or other fields.
+ * rejects any attempt to smuggle rank/suit or other fields. `meta` carries
+ * optional idempotency/version metadata (MFP-04).
  */
 export const playCardsCommandSchema = z
   .object({
@@ -79,6 +100,16 @@ export const playCardsCommandSchema = z
       .min(1)
       .max(MAX_CARDS_PER_PLAY),
     declaredSuit: suitSchema.optional(),
+    meta: commandMetadataSchema.optional(),
+  })
+  .strict();
+
+/** `resume_session` credentials (MFP-04). */
+export const resumeSessionSchema = z
+  .object({
+    roomId: z.string().regex(ROOM_CODE_REGEX),
+    playerId: z.string().min(1).max(MAX_PLAYER_ID_LENGTH),
+    reconnectToken: z.string().min(1).max(MAX_TOKEN_LENGTH),
   })
   .strict();
 
@@ -86,3 +117,5 @@ export const playCardsCommandSchema = z
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;
 export type JoinRoomInput = z.infer<typeof joinRoomSchema>;
 export type PlayCardsCommandInput = z.infer<typeof playCardsCommandSchema>;
+export type CommandMetadataInput = z.infer<typeof commandMetadataSchema>;
+export type ResumeSessionInput = z.infer<typeof resumeSessionSchema>;

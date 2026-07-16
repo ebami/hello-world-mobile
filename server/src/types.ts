@@ -14,9 +14,13 @@ export type {
   JoinRoomOptions,
   GameActionType,
   PlayCardsAction,
+  PlayCardsCommand,
+  CommandMetadata,
   DrawCardAction,
   DeclareLastCardAction,
   GameAction,
+  ResumeSessionOptions,
+  ResumeResult,
   ServerToClientEvents,
   ClientToServerEvents,
 } from '@hello-world/game-core';

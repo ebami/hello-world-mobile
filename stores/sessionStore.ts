@@ -12,7 +12,7 @@
 
 import { create } from 'zustand';
 import type { PlayerSummary } from '../game/types';
-import type { ConnectionStatus, RoomInfo } from '../networking/types';
+import type { ConnectionStatus, RoomInfo, ResumeResult } from '../networking/types';
 
 /**
  * Session state shape and actions.
@@ -86,7 +86,14 @@ export interface SessionState {
   
   /** Update the player list */
   updatePlayers: (players: PlayerSummary[]) => void;
-  
+
+  /**
+   * Reconcile session state from an authoritative resume snapshot (MFP-04):
+   * restores identity, room, players, host status, and the rotated token, and
+   * marks the connection usable again.
+   */
+  applyResume: (result: ResumeResult) => void;
+
   /** Reset all state to initial values */
   reset: () => void;
 }
@@ -168,6 +175,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   updatePlayers: (players) =>
     set({ players }),
+
+  applyResume: (result) =>
+    set({
+      roomId: result.room.roomId,
+      playerId: result.playerId,
+      players: result.room.players,
+      // Host is decided by stable opaque identity only (MFP-03).
+      isHost: result.room.hostId === result.playerId,
+      reconnectToken: result.reconnectToken,
+      connectionStatus: 'connected',
+      error: null,
+    }),
 
   reset: () =>
     set(initialState),

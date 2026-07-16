@@ -6,6 +6,7 @@ import type {
   PublicGameView,
   PrivateHandPayload,
   PlayCardsCommand,
+  CommandMetadata,
 } from '@hello-world/game-core';
 import {
   generateDeck,
@@ -36,7 +37,28 @@ function toPublicView(state: GameState, roomId: string): PublicGameView {
     activeSuit: state.activeSuit ?? null,
     players: room?.players ?? [],
     phase: room?.phase,
+    stateVersion: roomManager.getStateVersion(roomId),
   };
+}
+
+/**
+ * Build the authoritative snapshot a client reconciles from on resume (MFP-04):
+ * the current public view, the resumed player's own private hand, and the state
+ * version. `state`/`hand` are null when the room is still in the lobby.
+ */
+export function buildResumeSnapshot(
+  roomId: string,
+  playerId: string,
+): { state: PublicGameView | null; hand: PrivateHandPayload | null; stateVersion: number } {
+  const gameState = roomManager.getGameState(roomId);
+  const stateVersion = roomManager.getStateVersion(roomId);
+  if (!gameState) {
+    return { state: null, hand: null, stateVersion };
+  }
+  const seat = roomManager.seatIndex(roomId, playerId);
+  const state = toPublicView(gameState, roomId);
+  const hand = seat !== -1 ? toHandPayload(gameState, roomId, playerId, seat) : null;
+  return { state, hand, stateVersion };
 }
 
 /**
@@ -159,7 +181,8 @@ export function handleGameAction(
   socket: TypedSocket,
   roomId: string,
   action: 'play_cards' | 'draw_card' | 'declare_last_card',
-  command?: PlayCardsCommand
+  command?: PlayCardsCommand,
+  meta?: CommandMetadata,
 ): void {
   // Authorize by the socket's server-issued player id — not by name and not by
   // any client-supplied value. Rejects unauthenticated, non-member, wrong-room,
@@ -192,6 +215,24 @@ export function handleGameAction(
     return;
   }
   const displayName = roomManager.getPlayer(roomId, auth.playerId)?.displayName ?? 'Player';
+
+  // Idempotency + optimistic concurrency (MFP-04). Checked before turn
+  // validation so a duplicate or stale retry (e.g. after a reconnect) resyncs
+  // the client rather than surfacing a confusing turn/validation error.
+  if (meta) {
+    if (roomManager.hasSeenCommand(roomId, auth.playerId, meta.commandId)) {
+      // Already applied: re-send the authoritative state; never apply twice.
+      socket.emit('game_state_update', toPublicView(gameState, roomId));
+      return;
+    }
+    if (meta.expectedStateVersion !== roomManager.getStateVersion(roomId)) {
+      // Stale command: reject without mutating and push the latest snapshot so
+      // the client can resynchronize.
+      socket.emit('error', 'State version mismatch');
+      socket.emit('game_state_update', toPublicView(gameState, roomId));
+      return;
+    }
+  }
 
   // Validate turn (except for declare_last_card)
   if (action !== 'declare_last_card' && gameState.currentPlayer !== playerIndex) {
@@ -316,10 +357,15 @@ export function handleGameAction(
     }
   }
   
-  // Save updated state
+  // Save updated state and advance the monotonic version exactly once for this
+  // accepted command; record the command id so a retry is deduplicated (MFP-04).
   roomManager.setGameState(roomId, gameState);
   roomManager.updateHandCounts(roomId, gameState);
-  
+  roomManager.bumpStateVersion(roomId);
+  if (meta) {
+    roomManager.recordCommand(roomId, auth.playerId, meta.commandId);
+  }
+
   // Broadcast updates
   const publicView = toPublicView(gameState, roomId);
   io.to(roomId).emit('game_state_update', publicView);

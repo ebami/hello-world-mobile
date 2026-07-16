@@ -18,6 +18,7 @@
 import type { ZodType, ZodError } from 'zod';
 import type {
   RoomSession,
+  ResumeResult,
   ProtocolError,
   ProtocolErrorCode,
 } from '@hello-world/game-core';
@@ -26,10 +27,13 @@ import type { TypedSocket } from '../types';
 
 /**
  * Shape of the acknowledgement callback for room events. Success returns a
- * {@link RoomSession} (room + opaque identity + reconnect token); failure
+ * {@link RoomSession} (create/join) or a {@link ResumeResult} (resume); failure
  * returns `null` plus a {@link ProtocolError}.
  */
-export type RoomAck = (session: RoomSession | null, error?: ProtocolError) => void;
+export type RoomAck = (
+  result: RoomSession | ResumeResult | null,
+  error?: ProtocolError,
+) => void;
 
 /**
  * Error carrying a client-safe {@link ProtocolError}. Handlers throw this for

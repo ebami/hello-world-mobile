@@ -12,7 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import type { Card as CardType, Suit, PublicGameView, PrivateHandPayload } from '../game/types';
 import { getValidMoves } from '../game';
 import { PlayerArea, DiscardPile, ActionButtons, SuitPicker } from '../components';
-import type { GameTransport } from '../networking/types';
+import type { GameTransport, ConnectionStatus } from '../networking/types';
 
 interface MultiplayerGameScreenProps {
   readonly transport: GameTransport;
@@ -38,6 +38,11 @@ export default function MultiplayerGameScreen({
   const [showSuitPicker, setShowSuitPicker] = useState(false);
   const [pendingPlay, setPendingPlay] = useState<CardType[] | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  // Default 'connected' since this screen is only mounted after a live session.
+  // A transport drop moves this to 'connecting' until session resume succeeds,
+  // gating gameplay so we never act on an unresumed connection (MFP-04).
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected');
+  const isConnected = connectionStatus === 'connected';
 
   // Find current player index
   const myPlayerId = initialHand.playerId;
@@ -92,21 +97,24 @@ export default function MultiplayerGameScreen({
         Alert.alert('Error', error);
         setIsProcessing(false);
       },
+      // Gate gameplay on transport/session state (MFP-04): a reconnect reports
+      // 'connecting' until resume succeeds, then 'connected'.
+      onConnectionChange: setConnectionStatus,
     });
   }, [transport, myPlayerId, onBack, onPlayAgain]);
 
   const handleCardPress = useCallback((card: CardType) => {
-    if (!isPlayerTurn || isProcessing) return;
-    
+    if (!isPlayerTurn || isProcessing || !isConnected) return;
+
     setSelectedCards((prev) =>
       prev.some((c) => c.id === card.id)
         ? prev.filter((c) => c.id !== card.id)
         : [...prev, card]
     );
-  }, [isPlayerTurn, isProcessing]);
+  }, [isPlayerTurn, isProcessing, isConnected]);
 
   const handlePlay = useCallback(() => {
-    if (selectedCards.length === 0 || !isPlayerTurn || isProcessing) return;
+    if (selectedCards.length === 0 || !isPlayerTurn || isProcessing || !isConnected) return;
 
     // Validate the move
     const isValid =
@@ -135,7 +143,7 @@ export default function MultiplayerGameScreen({
     setIsProcessing(true);
     transport.sendAction({ type: 'PLAY_CARDS', cards: selectedCards });
     setSelectedCards([]);
-  }, [selectedCards, isPlayerTurn, isProcessing, validMoves, transport]);
+  }, [selectedCards, isPlayerTurn, isProcessing, isConnected, validMoves, transport]);
 
   const handleSuitSelect = useCallback((suit: Suit) => {
     if (!pendingPlay) return;
@@ -156,11 +164,11 @@ export default function MultiplayerGameScreen({
   );
 
   const handleDraw = useCallback(() => {
-    if (!isPlayerTurn || isProcessing || !canDraw) return;
+    if (!isPlayerTurn || isProcessing || !canDraw || !isConnected) return;
     setIsProcessing(true);
     transport.sendAction({ type: 'DRAW_CARD' });
     setSelectedCards([]);
-  }, [isPlayerTurn, isProcessing, canDraw, transport]);
+  }, [isPlayerTurn, isProcessing, canDraw, isConnected, transport]);
 
   const handleDeclareLastCard = useCallback(() => {
     if (!canDeclareLastCard) return;
@@ -201,6 +209,14 @@ export default function MultiplayerGameScreen({
           <Text style={styles.roomBadge}>🌐 MULTIPLAYER</Text>
         </View>
       </View>
+
+      {/* Reconnecting banner: shown while the transport is recovering the
+          session; gameplay input is disabled until resume succeeds (MFP-04). */}
+      {!isConnected && (
+        <View style={styles.reconnectingBanner}>
+          <Text style={styles.reconnectingText}>Reconnecting…</Text>
+        </View>
+      )}
 
       {/* Status Message */}
       <View style={styles.messageContainer}>
@@ -256,7 +272,7 @@ export default function MultiplayerGameScreen({
           canDraw={canDraw}
           canPlay={selectedCards.length > 0}
           canDeclareLastCard={canDeclareLastCard}
-          isPlayerTurn={isPlayerTurn && !isProcessing}
+          isPlayerTurn={isPlayerTurn && !isProcessing && isConnected}
         />
       </View>
 
@@ -324,6 +340,16 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     fontSize: 14,
     fontWeight: '600',
+  },
+  reconnectingBanner: {
+    backgroundColor: '#f59e0b',
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  reconnectingText: {
+    color: '#1a1a2e',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   messageContainer: {
     alignItems: 'center',

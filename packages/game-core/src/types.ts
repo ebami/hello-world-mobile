@@ -93,6 +93,12 @@ export interface PublicGameView {
   players: PlayerSummary[];
   /** Room lifecycle phase (MFP-05); set by the server, optional on the wire. */
   phase?: RoomPhase;
+  /**
+   * Monotonic version of the authoritative game state (MFP-04). Increments once
+   * per accepted state-changing command; clients echo it back as
+   * {@link CommandMetadata.expectedStateVersion}. Set by the server.
+   */
+  stateVersion?: number;
 }
 
 export interface PrivateHandPayload {
@@ -152,6 +158,38 @@ export interface RoomSession {
   expiresAt: string;
 }
 
+/** Credentials a client presents to resume a session after a reconnect (MFP-04). */
+export interface ResumeSessionOptions {
+  /** Room the session belongs to. */
+  roomId: string;
+  /** The caller's opaque player identity. */
+  playerId: string;
+  /** The signed reconnect token issued at create/join (or last resume). */
+  reconnectToken: string;
+}
+
+/**
+ * Authoritative snapshot returned on a successful resume (MFP-04). The client
+ * reconciles its local state entirely from this response. The reconnect token
+ * is rotated, so the previous token should be discarded.
+ */
+export interface ResumeResult {
+  /** Current public room/lobby state. */
+  room: RoomInfo;
+  /** Current public game view, or null if the game has not started. */
+  state: PublicGameView | null;
+  /** The resumed player's authoritative private hand, or null if no game yet. */
+  hand: PrivateHandPayload | null;
+  /** The resumed player's opaque identity. */
+  playerId: string;
+  /** A freshly rotated reconnect token; replaces the presented one. */
+  reconnectToken: string;
+  /** ISO-8601 expiry of the rotated token. */
+  expiresAt: string;
+  /** Current monotonic state version to resume command versioning from. */
+  stateVersion: number;
+}
+
 /** Options for creating a new game room. */
 export interface CreateRoomOptions {
   /**
@@ -190,6 +228,21 @@ export interface PlayCardsAction {
 }
 
 /**
+ * Metadata attached to a state-changing command for idempotency and optimistic
+ * concurrency (MFP-04). `commandId` lets the server discard a duplicate (e.g. a
+ * retried command after reconnect) so it is applied at most once;
+ * `expectedStateVersion` is the monotonic {@link PublicGameView.stateVersion}
+ * the client believed it was acting on, so a stale command is rejected instead
+ * of mutating newer state.
+ */
+export interface CommandMetadata {
+  /** Client-generated unique id for this command instance. */
+  commandId: string;
+  /** The state version the client expects the server to be at. */
+  expectedStateVersion: number;
+}
+
+/**
  * Network command for playing cards. The server resolves `cardIds` against the
  * player's own authoritative hand, so a client can never forge a card's rank
  * or physical suit — only reference cards it actually holds.
@@ -199,6 +252,8 @@ export interface PlayCardsCommand {
   cardIds: string[];
   /** Chosen active suit — required when the final played card is an Ace. */
   declaredSuit?: Suit;
+  /** Idempotency + version metadata (MFP-04); optional for compatibility. */
+  meta?: CommandMetadata;
 }
 
 /** Action to draw card(s) from the deck. */
@@ -244,9 +299,14 @@ export interface ClientToServerEvents {
     options: JoinRoomOptions,
     callback: (session: RoomSession | null, error?: ProtocolError) => void,
   ) => void;
+  /** Resume a session after a transport reconnect (MFP-04). */
+  resume_session: (
+    options: ResumeSessionOptions,
+    callback: (result: ResumeResult | null, error?: ProtocolError) => void,
+  ) => void;
   leave_room: () => void;
   start_game: () => void;
   play_cards: (command: PlayCardsCommand) => void;
-  draw_card: () => void;
-  declare_last_card: () => void;
+  draw_card: (meta?: CommandMetadata) => void;
+  declare_last_card: (meta?: CommandMetadata) => void;
 }

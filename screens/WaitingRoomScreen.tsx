@@ -28,7 +28,16 @@ export default function WaitingRoomScreen({
   onBack,
   onGameStart,
 }: WaitingRoomScreenProps) {
-  const { players, playerName, isHost, setRoom, updatePlayers, setError } = useSessionStore();
+  const {
+    players,
+    playerName,
+    isHost,
+    connectionStatus,
+    setRoom,
+    updatePlayers,
+    setError,
+    setConnectionStatus,
+  } = useSessionStore();
 
   // Set up event listeners
   useEffect(() => {
@@ -45,8 +54,11 @@ export default function WaitingRoomScreen({
       onError: (error) => {
         setError(error);
       },
+      // Keep connection state current so the host cannot start mid-reconnect
+      // and a recovered session re-enables controls (MFP-04).
+      onConnectionChange: setConnectionStatus,
     });
-  }, [room, transport, setRoom, updatePlayers, setError, onGameStart]);
+  }, [room, transport, setRoom, updatePlayers, setError, setConnectionStatus, onGameStart]);
 
   const handleLeaveRoom = useCallback(() => {
     transport.leaveRoom?.();
@@ -91,7 +103,7 @@ export default function WaitingRoomScreen({
     </View>
   );
 
-  const canStart = isHost && players.length >= 2;
+  const canStart = isHost && players.length >= 2 && connectionStatus === 'connected';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
