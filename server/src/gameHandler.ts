@@ -35,7 +35,44 @@ function toPublicView(state: GameState, roomId: string): PublicGameView {
     hasPlayed: state.hasPlayed,
     activeSuit: state.activeSuit ?? null,
     players: room?.players ?? [],
+    phase: room?.phase,
   };
+}
+
+/**
+ * Emit a single `game_over` for a completed game and return the winner's id.
+ * Broadcast to the whole room and to each seat's current socket so a player who
+ * has navigated away from the room channel still receives the result.
+ */
+function announceGameOver(
+  io: TypedServer,
+  roomId: string,
+  winnerId: string | null,
+  message: string,
+): void {
+  io.to(roomId).emit('game_over', winnerId, message);
+}
+
+/**
+ * Complete an active game as a forfeit by `leaverId` (explicit leave or grace
+ * expiry) and emit `game_over` exactly once. No-op if the room is not active or
+ * the game was already completed. Used by the socket server's leave/disconnect
+ * routing (MFP-05).
+ */
+export function forfeitAndComplete(
+  io: TypedServer,
+  roomId: string,
+  leaverId: string,
+): void {
+  const result = roomManager.forfeitActivePlayer(roomId, leaverId);
+  if (!result) {
+    return; // not active, not seated, or already completed
+  }
+  const winner = roomManager.getPlayer(roomId, result.winnerId);
+  const message = winner
+    ? `${winner.displayName} wins by forfeit!`
+    : 'Game over.';
+  announceGameOver(io, roomId, result.winnerId, message);
 }
 
 function toHandPayload(state: GameState, roomId: string, playerId: string, playerIndex: number): PrivateHandPayload {
@@ -133,15 +170,28 @@ export function handleGameAction(
     return;
   }
 
-  const room = roomManager.getRoom(roomId)!; // guaranteed by authorization
+  // Only an in-progress game accepts gameplay commands. A completed (or
+  // otherwise non-active) game rejects them (MFP-05).
+  if (roomManager.getPhase(roomId) !== 'ACTIVE') {
+    socket.emit('error', 'Game is not in progress');
+    return;
+  }
+
   let gameState = roomManager.getGameState(roomId);
   if (!gameState) {
     socket.emit('error', 'Game not found');
     return;
   }
 
-  const playerIndex = auth.playerIndex;
-  const displayName = room.players[playerIndex].displayName;
+  // Resolve the player's hand/turn position through the frozen seat mapping —
+  // never the mutable presentation array — so membership changes can't shift a
+  // player onto the wrong hand (MFP-05).
+  const playerIndex = roomManager.seatIndex(roomId, auth.playerId);
+  if (playerIndex === -1) {
+    socket.emit('error', 'You are not seated in this game');
+    return;
+  }
+  const displayName = roomManager.getPlayer(roomId, auth.playerId)?.displayName ?? 'Player';
 
   // Validate turn (except for declare_last_card)
   if (action !== 'declare_last_card' && gameState.currentPlayer !== playerIndex) {
@@ -273,25 +323,29 @@ export function handleGameAction(
   // Broadcast updates
   const publicView = toPublicView(gameState, roomId);
   io.to(roomId).emit('game_state_update', publicView);
-  
-  // Send private hand updates to each player
-  room.players.forEach((player, idx) => {
-    const socketId = roomManager.getSocketId(roomId, player.playerId);
+
+  // Send private hand updates via the frozen seat mapping: seat `i`'s hand goes
+  // to `seatOrder[i]`'s current socket. This guarantees each player receives
+  // their own authoritative hand regardless of presentation-array order.
+  const seatOrder = roomManager.getSeatOrder(roomId);
+  seatOrder.forEach((seatPlayerId, seat) => {
+    const socketId = roomManager.getSocketId(roomId, seatPlayerId);
     if (socketId) {
-      const handPayload = toHandPayload(gameState!, roomId, player.playerId, idx);
+      const handPayload = toHandPayload(gameState!, roomId, seatPlayerId, seat);
       io.to(socketId).emit('hand_update', handPayload);
     }
   });
-  
-  // Check for game over
+
+  // Check for game over. Gate the announcement on the single ACTIVE → COMPLETED
+  // transition so `game_over` is emitted exactly once (MFP-05).
   const result = isGameOver(gameState);
-  if (result.over) {
-    // The wire `winnerId` is the opaque player id (identity); the message shows
-    // the human-readable display name.
-    const winner = result.winner !== null ? room.players[result.winner] : null;
-    const winnerId = winner?.playerId ?? null;
+  if (result.over && roomManager.completeGame(roomId)) {
+    // The wire `winnerId` is the opaque player id, resolved through the seat
+    // mapping; the message shows the human-readable display name.
+    const winnerId = result.winner !== null ? seatOrder[result.winner] ?? null : null;
+    const winner = winnerId ? roomManager.getPlayer(roomId, winnerId) : null;
     const message = winner ? `${winner.displayName} wins!` : "It's a draw!";
-    io.to(roomId).emit('game_over', winnerId, message);
+    announceGameOver(io, roomId, winnerId, message);
   }
 }
 
@@ -311,25 +365,35 @@ export function startGame(io: TypedServer, socket: TypedSocket, roomId: string):
     return;
   }
 
-  if (room.players.length < 2) {
-    socket.emit('error', 'Need at least 2 players');
+  // Idempotent + phase-guarded: a room can only be started from the lobby, so a
+  // second start_game is rejected without redealing (MFP-05).
+  if (roomManager.getPhase(roomId) !== 'LOBBY') {
+    socket.emit('error', 'Game already started');
     return;
   }
-  
+
+  // Exactly two eligible (connected) players are required for the MVP.
+  const eligible = room.players.filter(p => p.connected).length;
+  if (eligible !== 2) {
+    socket.emit('error', 'Need exactly 2 connected players to start');
+    return;
+  }
+
   const gameState = initializeGame(roomId);
   if (!gameState) {
     socket.emit('error', 'Failed to initialize game');
     return;
   }
-  
+
   console.log(`[GameHandler] Starting game in room ${roomId}`);
-  
-  // Send game_start to each player with their hand
-  room.players.forEach((player, idx) => {
-    const socketId = roomManager.getSocketId(roomId, player.playerId);
+
+  // Send game_start to each player with their hand via the now-frozen seat map.
+  const seatOrder = roomManager.getSeatOrder(roomId);
+  seatOrder.forEach((seatPlayerId, seat) => {
+    const socketId = roomManager.getSocketId(roomId, seatPlayerId);
     if (socketId) {
       const publicView = toPublicView(gameState, roomId);
-      const handPayload = toHandPayload(gameState, roomId, player.playerId, idx);
+      const handPayload = toHandPayload(gameState, roomId, seatPlayerId, seat);
       io.to(socketId).emit('game_start', publicView, handPayload);
     }
   });

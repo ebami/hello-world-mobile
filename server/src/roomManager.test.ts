@@ -270,6 +270,109 @@ describe('RoomManager', () => {
     });
   });
 
+  describe('room lifecycle and seat mapping (MFP-05)', () => {
+    const mkState = () => ({
+      deck: [] as any[],
+      discardPile: [{ id: 'K♠', suit: '♠' as const, rank: 'K' as const }],
+      players: [
+        [{ id: 'A♥', suit: '♥' as const, rank: 'A' as const }],
+        [
+          { id: 'Q♦', suit: '♦' as const, rank: 'Q' as const },
+          { id: '3♣', suit: '♣' as const, rank: '3' as const },
+        ],
+      ],
+      currentPlayer: 0,
+      direction: 1,
+      message: '',
+      lastCardCalled: [false, false],
+      drawPressure: 0,
+      hasPlayed: [false, false],
+    });
+
+    function activeRoom() {
+      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
+      roomManager.joinRoom(room.roomId, 'id-bob', 'Bob', 'socket-2');
+      roomManager.setGameState(room.roomId, mkState());
+      return room.roomId;
+    }
+
+    it('starts in LOBBY and moves to ACTIVE when the game state is first set', () => {
+      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
+      expect(roomManager.getPhase(room.roomId)).toBe('LOBBY');
+      expect(room.phase).toBe('LOBBY');
+
+      roomManager.joinRoom(room.roomId, 'id-bob', 'Bob', 'socket-2');
+      roomManager.setGameState(room.roomId, mkState());
+
+      expect(roomManager.getPhase(room.roomId)).toBe('ACTIVE');
+      expect(roomManager.getRoom(room.roomId)!.isStarted).toBe(true);
+      expect(roomManager.getRoom(room.roomId)!.phase).toBe('ACTIVE');
+    });
+
+    it('freezes the seat order when the game starts', () => {
+      const roomId = activeRoom();
+      expect(roomManager.getSeatOrder(roomId)).toEqual(['id-alice', 'id-bob']);
+      expect(roomManager.seatIndex(roomId, 'id-alice')).toBe(0);
+      expect(roomManager.seatIndex(roomId, 'id-bob')).toBe(1);
+      expect(roomManager.seatIndex(roomId, 'nobody')).toBe(-1);
+    });
+
+    it('keeps hand counts tied to identity when the presentation array is reordered', () => {
+      const roomId = activeRoom();
+      // Simulate a presentation change: reverse the player array.
+      roomManager.getRoom(roomId)!.players.reverse();
+      roomManager.updateHandCounts(roomId, roomManager.getGameState(roomId)!);
+      // Alice (seat 0) has 1 card; Bob (seat 1) has 2 — regardless of array order.
+      expect(roomManager.getPlayer(roomId, 'id-alice')!.handCount).toBe(1);
+      expect(roomManager.getPlayer(roomId, 'id-bob')!.handCount).toBe(2);
+    });
+
+    it('refuses to join once the game has started', () => {
+      const roomId = activeRoom();
+      expect(() => {
+        roomManager.joinRoom(roomId, 'id-carol', 'Carol', 'socket-3');
+      }).toThrow('Game already started');
+    });
+
+    it('does not splice an active player on leave (seat order stays intact)', () => {
+      const roomId = activeRoom();
+      expect(roomManager.leaveRoom(roomId, 'id-bob')).toBeNull();
+      expect(roomManager.getSeatOrder(roomId)).toEqual(['id-alice', 'id-bob']);
+      expect(roomManager.getRoom(roomId)!.players).toHaveLength(2);
+    });
+
+    it('completes the game exactly once', () => {
+      const roomId = activeRoom();
+      expect(roomManager.completeGame(roomId)).toBe(true);
+      expect(roomManager.getPhase(roomId)).toBe('COMPLETED');
+      expect(roomManager.completeGame(roomId)).toBe(false);
+    });
+
+    it('forfeits an active player and awards the opponent (two-player MVP)', () => {
+      const roomId = activeRoom();
+      expect(roomManager.forfeitActivePlayer(roomId, 'id-bob')).toEqual({
+        winnerId: 'id-alice',
+      });
+      expect(roomManager.getPhase(roomId)).toBe('COMPLETED');
+      // The forfeiting player is marked disconnected; the winner stays connected.
+      expect(roomManager.getPlayer(roomId, 'id-bob')!.connected).toBe(false);
+      // A second forfeit is a no-op (already completed) so game_over stays single.
+      expect(roomManager.forfeitActivePlayer(roomId, 'id-alice')).toBeNull();
+    });
+
+    it('does not forfeit outside an active game', () => {
+      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1'); // LOBBY
+      expect(roomManager.forfeitActivePlayer(room.roomId, 'id-alice')).toBeNull();
+    });
+
+    it('lets a lobby host leave and transfers host ownership by id', () => {
+      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
+      roomManager.joinRoom(room.roomId, 'id-bob', 'Bob', 'socket-2');
+      const updated = roomManager.leaveRoom(room.roomId, 'id-alice');
+      expect(updated!.hostId).toBe('id-bob');
+    });
+  });
+
   describe('getRoom', () => {
     it('should return room info', () => {
       const created = roomManager.createRoom('id-alice', 'Alice', 'socket-1');

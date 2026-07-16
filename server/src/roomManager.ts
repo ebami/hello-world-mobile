@@ -5,12 +5,22 @@
 // presentation only; the per-room `socketIds` map records which socket
 // currently speaks for each player and is the authoritative source for
 // stale-socket detection during authorization.
-import type { RoomInfo, PlayerSummary, GameState } from './types';
+import type { RoomInfo, PlayerSummary, GameState, RoomPhase } from './types';
 
 interface RoomData {
   info: RoomInfo;
   socketIds: Map<string, string>; // playerId -> current socketId
   gameState: GameState | null;
+  /** Room lifecycle phase (MFP-05). */
+  phase: RoomPhase;
+  /**
+   * Immutable seat → playerId mapping, frozen when the game starts (MFP-05).
+   * `gameState.players[i]` is the hand of `seatOrder[i]`. All server-side hand,
+   * turn, and winner lookups go through this — never the mutable presentation
+   * array — so removing/forfeiting a player can never shift someone onto the
+   * wrong hand. Empty while in LOBBY.
+   */
+  seatOrder: string[];
 }
 
 class RoomManager {
@@ -50,12 +60,15 @@ class RoomManager {
       players: [hostPlayer],
       maxPlayers,
       isStarted: false,
+      phase: 'LOBBY',
     };
 
     const roomData: RoomData = {
       info: roomInfo,
       socketIds: new Map([[hostId, socketId]]),
       gameState: null,
+      phase: 'LOBBY',
+      seatOrder: [],
     };
 
     this.rooms.set(roomId, roomData);
@@ -70,7 +83,8 @@ class RoomManager {
       return null;
     }
 
-    if (room.info.isStarted) {
+    // Joining is a LOBBY-only transition (MFP-05).
+    if (room.phase !== 'LOBBY') {
       throw new Error('Game already started');
     }
 
@@ -100,9 +114,20 @@ class RoomManager {
     return room.info;
   }
 
+  /**
+   * Remove a player from a room. Valid only outside an ACTIVE game: leaving an
+   * active game is a forfeit ({@link forfeitActivePlayer}), which must never
+   * splice the frozen seat order. Returns the updated room, or `null` when the
+   * room is gone/empty or the removal is not applicable.
+   */
   leaveRoom(roomId: string, playerId: string): RoomInfo | null {
     const room = this.rooms.get(roomId);
     if (!room) {
+      return null;
+    }
+
+    // An active game must not have its seat order mutated by a leave.
+    if (room.phase === 'ACTIVE') {
       return null;
     }
 
@@ -190,17 +215,21 @@ class RoomManager {
 
   setGameState(roomId: string, gameState: GameState): void {
     const room = this.rooms.get(roomId);
-    if (room) {
-      room.gameState = gameState;
-      room.info.isStarted = true;
+    if (!room) return;
 
-      // Update hand counts
-      gameState.players.forEach((hand, idx) => {
-        if (room.info.players[idx]) {
-          room.info.players[idx].handCount = hand.length;
-        }
-      });
+    room.gameState = gameState;
+
+    // The first time a game state is set, the game starts: freeze the seat
+    // order and move LOBBY → ACTIVE. Subsequent updates never re-freeze the
+    // seat order or reopen a completed game.
+    if (room.phase === 'LOBBY') {
+      room.phase = 'ACTIVE';
+      room.info.phase = 'ACTIVE';
+      room.info.isStarted = true;
+      room.seatOrder = room.info.players.map(p => p.playerId);
     }
+
+    this.updateHandCountsBySeat(room, gameState);
   }
 
   getGameState(roomId: string): GameState | null {
@@ -210,12 +239,88 @@ class RoomManager {
   updateHandCounts(roomId: string, gameState: GameState): void {
     const room = this.rooms.get(roomId);
     if (room) {
-      gameState.players.forEach((hand, idx) => {
-        if (room.info.players[idx]) {
-          room.info.players[idx].handCount = hand.length;
-        }
-      });
+      this.updateHandCountsBySeat(room, gameState);
     }
+  }
+
+  /**
+   * Update each player's `handCount` via the frozen seat mapping — the hand at
+   * `gameState.players[seat]` belongs to `seatOrder[seat]` — so counts follow
+   * identity, not array position. Players no longer present (forfeited/left) are
+   * skipped. No-op before the seat order is frozen.
+   */
+  private updateHandCountsBySeat(room: RoomData, gameState: GameState): void {
+    room.seatOrder.forEach((playerId, seat) => {
+      const player = room.info.players.find(p => p.playerId === playerId);
+      const hand = gameState.players[seat];
+      if (player && hand) {
+        player.handCount = hand.length;
+      }
+    });
+  }
+
+  /** Current lifecycle phase, or null if the room is gone. */
+  getPhase(roomId: string): RoomPhase | null {
+    return this.rooms.get(roomId)?.phase ?? null;
+  }
+
+  /** The frozen seat → playerId mapping (empty before the game starts). */
+  getSeatOrder(roomId: string): string[] {
+    return this.rooms.get(roomId)?.seatOrder ?? [];
+  }
+
+  /**
+   * Seat index of a player in the frozen seat order, or -1 if not seated. This
+   * is the ONLY correct source of a player's hand/turn index during a game.
+   */
+  seatIndex(roomId: string, playerId: string): number {
+    return this.rooms.get(roomId)?.seatOrder.indexOf(playerId) ?? -1;
+  }
+
+  /**
+   * Record game completion exactly once: transitions ACTIVE → COMPLETED and
+   * returns `true` only on that first transition. Callers gate the single
+   * `game_over` emission on this, so a natural win and a concurrent forfeit can
+   * never both announce a result.
+   */
+  completeGame(roomId: string): boolean {
+    const room = this.rooms.get(roomId);
+    if (!room || room.phase !== 'ACTIVE') {
+      return false;
+    }
+    room.phase = 'COMPLETED';
+    room.info.phase = 'COMPLETED';
+    return true;
+  }
+
+  /**
+   * Forfeit an active player (explicit leave or grace expiry). In the
+   * two-player MVP this completes the game and awards the opponent the win.
+   * Returns the winner's opaque id, or `null` if the room is not ACTIVE, the
+   * player is not seated, or the game was already completed (so callers emit
+   * `game_over` at most once). The seat order is never mutated.
+   */
+  forfeitActivePlayer(roomId: string, playerId: string): { winnerId: string } | null {
+    const room = this.rooms.get(roomId);
+    if (!room || room.phase !== 'ACTIVE') {
+      return null;
+    }
+    if (!room.seatOrder.includes(playerId)) {
+      return null;
+    }
+    const winnerId = room.seatOrder.find(id => id !== playerId) ?? null;
+
+    // Mark the forfeiting player disconnected for presentation; the seat order
+    // is left intact.
+    const leaver = room.info.players.find(p => p.playerId === playerId);
+    if (leaver) {
+      leaver.connected = false;
+    }
+
+    room.phase = 'COMPLETED';
+    room.info.phase = 'COMPLETED';
+
+    return winnerId ? { winnerId } : null;
   }
 
   getAllSocketIds(roomId: string): string[] {

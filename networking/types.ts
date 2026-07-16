@@ -19,6 +19,7 @@ export type {
   DeclareLastCardAction,
   GameAction,
   RoomInfo,
+  RoomPhase,
   RoomSession,
   CreateRoomOptions,
   JoinRoomOptions,

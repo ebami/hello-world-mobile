@@ -338,6 +338,38 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
     await expectServerResponsive(client);
   });
 
+  it('an active-game leave forfeits and the opponent gets a single game_over (MFP-05)', async () => {
+    const host = await connect();
+    const { session: hostSession } = await emitWithAck(host, 'create_room', validCreate);
+    const roomId = (hostSession as { room: { roomId: string } }).room.roomId;
+
+    const guest = await connect();
+    const { session: guestSession } = await emitWithAck(guest, 'join_room', {
+      roomId,
+      playerName: 'Bob',
+    });
+    const guestId = (guestSession as { playerId: string }).playerId;
+
+    // Host starts the game; wait until the guest sees game_start.
+    const started = new Promise<void>((resolve) =>
+      guest.once('game_start', () => resolve()),
+    );
+    host.emit('start_game');
+    await started;
+
+    // Host leaves mid-game — a forfeit; the guest must win via a single game_over.
+    const over = new Promise<[string | null, string]>((resolve) =>
+      guest.once('game_over', (winnerId: string | null, message: string) =>
+        resolve([winnerId, message]),
+      ),
+    );
+    host.emit('leave_room');
+
+    const [winnerId, message] = await over;
+    expect(winnerId).toBe(guestId);
+    expect(message).toContain('forfeit');
+  });
+
   it('stays responsive after a burst of malformed requests', async () => {
     const client = await connect();
 

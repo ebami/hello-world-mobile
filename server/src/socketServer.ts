@@ -14,7 +14,7 @@ import { createServer, type Server as HttpServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { roomManager } from './roomManager';
-import { handleGameAction, startGame } from './gameHandler';
+import { handleGameAction, startGame, forfeitAndComplete } from './gameHandler';
 import { guard, translateRoomError } from './validation/validatedHandler';
 import { newPlayerId } from './identity';
 import { signSession } from './sessionToken';
@@ -118,16 +118,21 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
     guard('leave_room', null, args, socket, () => {
       const roomId = socket.data.roomId;
       const playerId = socket.data.playerId;
+      if (!roomId || !playerId) return;
 
-      if (roomId && playerId) {
+      if (roomManager.getPhase(roomId) === 'ACTIVE') {
+        // Leaving an active game is a forfeit: the opponent wins and a single
+        // game_over is emitted (MFP-05). The seat order is never mutated.
+        forfeitAndComplete(io, roomId, playerId);
+      } else {
         const room = roomManager.leaveRoom(roomId, playerId);
-        socket.leave(roomId);
-        socket.data.roomId = null;
-
         if (room) {
           io.to(roomId).emit('room_updated', room);
         }
       }
+
+      socket.leave(roomId);
+      socket.data.roomId = null;
     });
   });
 
@@ -176,7 +181,9 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
     const playerId = socket.data.playerId;
 
     if (roomId && playerId) {
-      // Mark player as disconnected but don't remove immediately.
+      // Mark player as disconnected but keep the seat; begin a grace period
+      // (MFP-05). Reliable cancellation of this timer on reconnect is completed
+      // in MFP-04.
       roomManager.setPlayerConnected(roomId, playerId, false);
 
       const room = roomManager.getRoom(roomId);
@@ -184,19 +191,21 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
         io.to(roomId).emit('room_updated', room);
       }
 
-      // Remove the player if they don't reconnect within the grace period.
-      // (Reliable cancellation of this timer is completed in MFP-04.)
-      // `.unref()` so a lone pending grace timer never keeps the process (or a
-      // test run) alive on its own.
+      // On grace expiry, resolve by phase. `.unref()` so a lone pending grace
+      // timer never keeps the process (or a test run) alive on its own.
       setTimeout(() => {
-        const currentRoom = roomManager.getRoom(roomId);
-        if (currentRoom) {
-          const player = currentRoom.players.find((p) => p.playerId === playerId);
-          if (player && !player.connected) {
-            const updatedRoom = roomManager.leaveRoom(roomId, playerId);
-            if (updatedRoom) {
-              io.to(roomId).emit('room_updated', updatedRoom);
-            }
+        const player = roomManager.getPlayer(roomId, playerId);
+        if (!player || player.connected) {
+          return; // reconnected, or already removed
+        }
+        if (roomManager.getPhase(roomId) === 'ACTIVE') {
+          // Grace expired mid-game → forfeit; the opponent wins (MFP-05).
+          forfeitAndComplete(io, roomId, playerId);
+        } else {
+          // Lobby/completed → remove the player and clean up empty rooms.
+          const updatedRoom = roomManager.leaveRoom(roomId, playerId);
+          if (updatedRoom) {
+            io.to(roomId).emit('room_updated', updatedRoom);
           }
         }
       }, 30000).unref();

@@ -3,7 +3,7 @@
  */
 
 import { roomManager } from './roomManager';
-import { handleGameAction, startGame } from './gameHandler';
+import { handleGameAction, startGame, forfeitAndComplete } from './gameHandler';
 import { playCardsCommandSchema } from './validation/schemas';
 import type { Card, GameState, TypedServer, TypedSocket } from './types';
 
@@ -606,5 +606,162 @@ describe('GameHandler - command authorization (MFP-03)', () => {
       expect(errors(emitted)).toContain('Only host can start game');
       expect(roomManager.getGameState(roomId)).toBeNull();
     });
+  });
+});
+
+describe('GameHandler - lifecycle, seat mapping, and forfeits (MFP-05)', () => {
+  const KH: Card = { id: 'K♥', suit: '♥', rank: 'K' };
+  const TWO_H: Card = { id: '2♥', suit: '♥', rank: '2' };
+  const QD: Card = { id: 'Q♦', suit: '♦', rank: 'Q' };
+  const TOP_KS: Card = { id: 'K♠', suit: '♠', rank: 'K' };
+
+  beforeEach(() => {
+    resetRoomManager();
+  });
+
+  // io mock that records every targeted emit ({ target, event, args }).
+  function makeIo() {
+    const emits: Array<{ target: string; event: string; args: unknown[] }> = [];
+    const io = {
+      to: (target: string) => ({
+        emit: (event: string, ...args: unknown[]) => {
+          emits.push({ target, event, args });
+        },
+      }),
+    } as unknown as TypedServer;
+    return { io, emits };
+  }
+
+  function makeSocket(
+    id: string,
+    data: { playerId?: string; playerName?: string; roomId: string | null },
+  ) {
+    const emitted: Array<[string, ...unknown[]]> = [];
+    const socket = {
+      id,
+      data,
+      emit: (event: string, ...args: unknown[]) => emitted.push([event, ...args]),
+    } as unknown as TypedSocket;
+    return { socket, emitted };
+  }
+
+  const errors = (emitted: Array<[string, ...unknown[]]>) =>
+    emitted.filter(([ev]) => ev === 'error').map(([, msg]) => msg);
+
+  // Active room: host Alice (id 'h', socket 's1'), Bob (id 'p2', socket 's2'),
+  // Alice's turn, discard top K♠.
+  function seedActive(aliceHand: Card[] = [KH, TWO_H], bobHand: Card[] = [QD]) {
+    const room = roomManager.createRoom('h', 'Alice', 's1');
+    const roomId = room.roomId;
+    roomManager.joinRoom(roomId, 'p2', 'Bob', 's2');
+    roomManager.setGameState(
+      roomId,
+      createMockGameState({
+        players: [aliceHand, bobHand],
+        discardPile: [TOP_KS],
+        currentPlayer: 0,
+      }),
+    );
+    return roomId;
+  }
+
+  it('rejects gameplay commands after the game is completed', () => {
+    const roomId = seedActive();
+    roomManager.completeGame(roomId);
+    const { io } = makeIo();
+    const { socket, emitted } = makeSocket('s1', {
+      playerId: 'h',
+      playerName: 'Alice',
+      roomId,
+    });
+    handleGameAction(io, socket, roomId, 'draw_card');
+    expect(errors(emitted)).toContain('Game is not in progress');
+  });
+
+  it('rejects a second start_game without redealing', () => {
+    const room = roomManager.createRoom('h', 'Alice', 's1');
+    const roomId = room.roomId;
+    roomManager.joinRoom(roomId, 'p2', 'Bob', 's2');
+    const { io } = makeIo();
+
+    startGame(io, makeSocket('s1', { playerId: 'h', playerName: 'Alice', roomId }).socket, roomId);
+    const firstState = roomManager.getGameState(roomId);
+    expect(firstState).not.toBeNull();
+
+    const second = makeSocket('s1', { playerId: 'h', playerName: 'Alice', roomId });
+    startGame(io, second.socket, roomId);
+
+    expect(errors(second.emitted)).toContain('Game already started');
+    // Same state reference — no redeal.
+    expect(roomManager.getGameState(roomId)).toBe(firstState);
+  });
+
+  it('emits a single game_over on a natural win, resolved via the seat map', () => {
+    // Alice holds exactly K♥ (matches K♠ by rank) and has already declared last
+    // card, so playing it out is a legitimate win (not a stalemate).
+    const room = roomManager.createRoom('h', 'Alice', 's1');
+    const roomId = room.roomId;
+    roomManager.joinRoom(roomId, 'p2', 'Bob', 's2');
+    roomManager.setGameState(
+      roomId,
+      createMockGameState({
+        players: [[KH], [QD]],
+        discardPile: [TOP_KS],
+        currentPlayer: 0,
+        lastCardCalled: [true, false],
+      }),
+    );
+
+    const { io, emits } = makeIo();
+    const { socket, emitted } = makeSocket('s1', { playerId: 'h', playerName: 'Alice', roomId });
+
+    handleGameAction(io, socket, roomId, 'play_cards', { cardIds: ['K♥'] });
+
+    expect(errors(emitted)).toEqual([]);
+    const overs = emits.filter((e) => e.event === 'game_over');
+    expect(overs).toHaveLength(1);
+    expect(overs[0].args[0]).toBe('h'); // opaque winner id from seat 0
+    expect(overs[0].args[1]).toBe('Alice wins!');
+    expect(roomManager.getPhase(roomId)).toBe('COMPLETED');
+  });
+
+  it('delivers each seat its own hand even when the presentation array is reordered', () => {
+    const roomId = seedActive([KH, TWO_H], [QD]);
+    // Presentation change: reverse the player array (Bob now at index 0).
+    roomManager.getRoom(roomId)!.players.reverse();
+
+    const { io, emits } = makeIo();
+    const { socket } = makeSocket('s1', { playerId: 'h', playerName: 'Alice', roomId });
+    handleGameAction(io, socket, roomId, 'draw_card'); // Alice (seat 0) draws
+
+    const hands = emits.filter((e) => e.event === 'hand_update');
+    const toAlice = hands.find((e) => e.target === 's1');
+    const toBob = hands.find((e) => e.target === 's2');
+    expect((toAlice!.args[0] as { playerId: string }).playerId).toBe('h');
+    expect((toBob!.args[0] as { playerId: string }).playerId).toBe('p2');
+  });
+
+  it('forfeits an active leave to the opponent and emits game_over once', () => {
+    const roomId = seedActive();
+    const { io, emits } = makeIo();
+
+    forfeitAndComplete(io, roomId, 'p2'); // Bob leaves → Alice wins
+    forfeitAndComplete(io, roomId, 'p2'); // already completed → no-op
+
+    const overs = emits.filter((e) => e.event === 'game_over');
+    expect(overs).toHaveLength(1);
+    expect(overs[0].args[0]).toBe('h');
+    expect(overs[0].args[1]).toBe('Alice wins by forfeit!');
+  });
+
+  it('forfeit awards the correct opponent regardless of who leaves', () => {
+    const roomId = seedActive();
+    const { io, emits } = makeIo();
+
+    forfeitAndComplete(io, roomId, 'h'); // Alice leaves → Bob wins
+
+    const overs = emits.filter((e) => e.event === 'game_over');
+    expect(overs[0].args[0]).toBe('p2');
+    expect(overs[0].args[1]).toBe('Bob wins by forfeit!');
   });
 });

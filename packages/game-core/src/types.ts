@@ -91,6 +91,8 @@ export interface PublicGameView {
   /** Suit currently in force (the declared suit after an Ace), or null. */
   activeSuit?: Suit | null;
   players: PlayerSummary[];
+  /** Room lifecycle phase (MFP-05); set by the server, optional on the wire. */
+  phase?: RoomPhase;
 }
 
 export interface PrivateHandPayload {
@@ -102,6 +104,17 @@ export interface PrivateHandPayload {
 
 // ========== Room / Lobby Types ==========
 
+/**
+ * Explicit room lifecycle (MFP-05). The phase — not the mutable player array —
+ * governs which transitions and commands are legal:
+ *  - `LOBBY`: players may join/leave; the host may start.
+ *  - `ACTIVE`: a game is in progress; the seat order is frozen.
+ *  - `COMPLETED`: the game ended (win/draw/forfeit); gameplay is rejected.
+ *  - `ABANDONED`: ended without a normal result (reserved; e.g. all left).
+ *  - `CLOSED`: fully torn down / scheduled for cleanup.
+ */
+export type RoomPhase = 'LOBBY' | 'ACTIVE' | 'COMPLETED' | 'ABANDONED' | 'CLOSED';
+
 /** Information about a game room/lobby. */
 export interface RoomInfo {
   /** Unique room identifier (6-character code) */
@@ -112,8 +125,13 @@ export interface RoomInfo {
   players: PlayerSummary[];
   /** Maximum number of players allowed */
   maxPlayers: number;
-  /** Whether the game has started */
+  /** Whether the game has started (derived from {@link phase} for compatibility). */
   isStarted: boolean;
+  /**
+   * Current room lifecycle phase (MFP-05). Always set by the server; optional
+   * on the wire type so existing/partial fixtures remain valid.
+   */
+  phase?: RoomPhase;
 }
 
 /**
