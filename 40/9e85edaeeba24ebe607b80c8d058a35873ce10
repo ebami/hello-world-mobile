@@ -1,0 +1,48 @@
+server/src/index.ts
+  s_779d9c981bec79::t_bc8ad97db4477b 5
+  s_779d9c981bec79::t_bbfc8c97acea41 20-29,33-36
+server/.env.example
+  s_779d9c981bec79::t_d501952dfce16e 1-30
+server/src/config.test.ts
+  s_779d9c981bec79::t_32013e67f3e6da 1-94
+app.config.ts
+  s_779d9c981bec79::t_3f0257c3f37498 1-44
+.env.example
+  s_779d9c981bec79::t_c24d3e3059e05a 1-21
+eas.json
+  s_779d9c981bec79::t_889c7d5729416c 1-30
+networking/config.ts
+  s_779d9c981bec79::t_36c6dcdf84affb 1-81
+__tests__/networking/config.test.ts
+  s_779d9c981bec79::t_10fe1e8fcb576b 1-71
+server/src/config.ts
+  s_779d9c981bec79::t_9c7c17bb153b78 1-129
+package.json
+  s_779d9c981bec79::t_e01580d3257b41 18-19
+.gitignore
+  s_779d9c981bec79::t_4b259389de05a2 33-34,36-37
+README.md
+  s_779d9c981bec79::t_73abd1e2868d10 109-147
+networking/socketTransport.ts
+  s_779d9c981bec79::t_8b65b64f8c9289 22,75-77
+server/package.json
+  s_779d9c981bec79::t_bbe92b9d990c5c 10
+server/src/socketServer.ts
+  s_779d9c981bec79::t_9ed3a98031b52f 27,295-298,311
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "409e85edaeeba24ebe607b80c8d058a35873ce10",
+  "prompts": {},
+  "sessions": {
+    "s_779d9c981bec79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67d45d4f-0ec4-4966-a4e4-a8cd8bb61f9c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
