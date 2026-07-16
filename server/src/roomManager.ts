@@ -30,7 +30,10 @@ class RoomManager {
     return code;
   }
 
-  createRoom(hostId: string, hostName: string, socketId: string, maxPlayers: number = 4): RoomInfo {
+  // The production online MVP is two-player (MFP-11). game-core still supports
+  // more players, but rooms default to a two-player cap and the server never
+  // trusts a larger client-requested size.
+  createRoom(hostId: string, hostName: string, socketId: string, maxPlayers: number = 2): RoomInfo {
     const roomId = this.generateRoomCode();
 
     const hostPlayer: PlayerSummary = {

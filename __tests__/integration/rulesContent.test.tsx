@@ -28,7 +28,7 @@ describe('Rules Content Integration', () => {
 
     it('displays setup instructions', () => {
       expect(screen.getByText('⚙️ Setup')).toBeTruthy();
-      expect(screen.getByText('• 2–5 players')).toBeTruthy();
+      expect(screen.getByText(/2–5 players/)).toBeTruthy();
     });
 
     it('displays turn options', () => {

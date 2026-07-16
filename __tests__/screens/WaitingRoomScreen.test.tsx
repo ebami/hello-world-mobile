@@ -20,7 +20,7 @@ describe('WaitingRoomScreen', () => {
       { playerId: 'id-1', displayName: 'Alice', handCount: 0, connected: true, isBot: false },
       { playerId: 'id-2', displayName: 'Bob', handCount: 0, connected: true, isBot: false },
     ],
-    maxPlayers: 4,
+    maxPlayers: 2,
     isStarted: false,
   };
 
@@ -111,6 +111,25 @@ describe('WaitingRoomScreen', () => {
         // The list renders display names, not opaque ids.
         expect(getByText(/Alice/)).toBeTruthy();
         expect(getByText(/Bob/)).toBeTruthy();
+      });
+    });
+
+    it('should communicate the two-player cap (MFP-11)', async () => {
+      useSessionStore.getState().updatePlayers(mockRoom.players);
+
+      const { getByText } = render(
+        <WaitingRoomScreen
+          room={mockRoom}
+          transport={mockTransport as any}
+          onBack={mockOnBack}
+          onGameStart={mockOnGameStart}
+        />
+      );
+
+      await waitFor(() => {
+        expect(getByText('Two-player match')).toBeTruthy();
+        // Player count is shown out of the two-player cap.
+        expect(getByText(/\/2\)/)).toBeTruthy();
       });
     });
 

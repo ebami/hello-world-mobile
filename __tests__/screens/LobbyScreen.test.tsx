@@ -180,7 +180,6 @@ describe('LobbyScreen', () => {
       await waitFor(() => {
         expect(mockTransportInstance.createRoom).toHaveBeenCalledWith({
           playerName: 'Alice',
-          maxPlayers: 4,
         });
       });
     });

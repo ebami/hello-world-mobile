@@ -57,11 +57,13 @@ function registerHandlers(io: TypedServer, socket: TypedSocket): void {
       const playerId = newPlayerId();
       let room;
       try {
+        // Server-authoritative room size (MFP-11): the client-requested
+        // `maxPlayers` is never trusted; rooms are capped at two players by the
+        // RoomManager default. The strict schema also rejects any value > 2.
         room = roomManager.createRoom(
           playerId,
           options.playerName,
           socket.id,
-          options.maxPlayers ?? 4,
         );
       } catch (err) {
         throw translateRoomError(err);

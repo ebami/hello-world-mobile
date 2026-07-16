@@ -43,7 +43,7 @@ describe('RoomManager', () => {
 
   describe('createRoom', () => {
     it('should create a room keyed by opaque player id, not display name', () => {
-      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1', 4);
+      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
 
       expect(room.roomId).toHaveLength(6);
       expect(room.hostId).toBe('id-alice');
@@ -51,13 +51,22 @@ describe('RoomManager', () => {
       expect(room.players[0].playerId).toBe('id-alice');
       expect(room.players[0].displayName).toBe('Alice');
       expect(room.players[0].connected).toBe(true);
-      expect(room.maxPlayers).toBe(4);
       expect(room.isStarted).toBe(false);
     });
 
-    it('should use default maxPlayers of 4', () => {
+    it('should default new rooms to the two-player cap (MFP-11)', () => {
       const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
-      expect(room.maxPlayers).toBe(4);
+      expect(room.maxPlayers).toBe(2);
+    });
+
+    it('should reject a third join once the two-player cap is reached (MFP-11)', () => {
+      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
+      roomManager.joinRoom(room.roomId, 'id-bob', 'Bob', 'socket-2');
+
+      expect(() => {
+        roomManager.joinRoom(room.roomId, 'id-carol', 'Carol', 'socket-3');
+      }).toThrow('Room is full');
+      expect(roomManager.getRoom(room.roomId)!.players).toHaveLength(2);
     });
 
     it('should store socket ID keyed by the host player id', () => {

@@ -122,6 +122,7 @@ export default function WaitingRoomScreen({
         <Text style={styles.sectionTitle}>
           Players ({players.length}/{room.maxPlayers})
         </Text>
+        <Text style={styles.sectionCaption}>Two-player match</Text>
         <FlatList
           data={players}
           renderItem={renderPlayer}
@@ -237,6 +238,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+    marginBottom: 4,
+  },
+  sectionCaption: {
+    color: '#888',
+    fontSize: 13,
     marginBottom: 15,
   },
   playersList: {

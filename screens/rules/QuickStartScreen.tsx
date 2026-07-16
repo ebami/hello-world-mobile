@@ -41,7 +41,7 @@ export default function QuickStartScreen({ onBack, onNavigate }: RulesScreenProp
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>⚙️ Setup</Text>
           <View style={styles.bulletList}>
-            <Text style={styles.bullet}>• 2–5 players</Text>
+            <Text style={styles.bullet}>• 2–5 players (online play is 2‑player)</Text>
             <Text style={styles.bullet}>• Deal 5 cards each (or 7 for longer games)</Text>
             <Text style={styles.bullet}>• Flip one card to start the discard pile</Text>
           </View>

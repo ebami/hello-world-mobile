@@ -77,9 +77,10 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
     setError(null);
 
     try {
+      // Two-player online MVP (MFP-11): room size is server-authoritative, so
+      // the client does not request a size.
       const session = await transport.createRoom({
         playerName: playerName.trim(),
-        maxPlayers: 4,
       });
       // Persist the server-issued opaque identity + reconnect token so host
       // status and (later) reconnect are driven by stable identity, not name.

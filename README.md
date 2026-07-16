@@ -5,7 +5,7 @@ A real-time multiplayer card game built with React Native and Socket.IO. Play ag
 ## Features
 
 - 🎮 **Single-player mode** — Play against AI with easy, medium, or hard difficulty
-- 🌐 **Multiplayer mode** — Create or join rooms to play with friends
+- 🌐 **Multiplayer mode** — Create or join a room to play 1‑v‑1 with a friend (two‑player online MVP)
 - 🃏 **Full card game rules** — Runs, special cards (Aces, Kings, Jacks), draw pressure
 - 📱 **Cross-platform** — Works on iOS, Android, and web via Expo
 - ✨ **Smooth animations** — Card flip, selection pop, dealing, and discard animations

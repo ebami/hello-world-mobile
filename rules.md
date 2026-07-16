@@ -2,6 +2,8 @@
 
 These rules consolidate all decisions we’ve made. This is a shedding game for **2–5 players** using a standard 52‑card deck (no Jokers).
 
+> **Online play:** the production online multiplayer MVP is **two‑player** (1‑v‑1). The tabletop rules below still describe the full 2–5 player game.
+
 > ## Setup Options (choose before you play)
 >
 > - **Players:** 2–5

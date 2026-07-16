@@ -54,7 +54,7 @@ describe('QuickStartScreen', () => {
     it('renders setup instructions', () => {
       render(<QuickStartScreen onBack={mockOnBack} />);
       
-      expect(screen.getByText('• 2–5 players')).toBeTruthy();
+      expect(screen.getByText(/2–5 players/)).toBeTruthy();
       expect(screen.getByText('• Deal 5 cards each (or 7 for longer games)')).toBeTruthy();
     });
 

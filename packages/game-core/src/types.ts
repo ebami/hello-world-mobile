@@ -136,7 +136,11 @@ export interface RoomSession {
 
 /** Options for creating a new game room. */
 export interface CreateRoomOptions {
-  /** Maximum players allowed (default: 4) */
+  /**
+   * Requested maximum players. The production online MVP is two-player
+   * (MFP-11): the server caps every room at two and ignores any larger value,
+   * so this is effectively advisory and may be omitted.
+   */
   maxPlayers?: number;
   /** Display name for the creating player */
   playerName: string;

@@ -310,6 +310,34 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
     }
   });
 
+  it('caps rooms at two players and rejects a third join with ROOM_FULL (MFP-11)', async () => {
+    const host = await connect();
+    const { session } = await emitWithAck(host, 'create_room', validCreate);
+    const created = session as { room: { roomId: string; maxPlayers: number } };
+    expect(created.room.maxPlayers).toBe(2);
+    const roomId = created.room.roomId;
+
+    const guest = await connect();
+    const second = await emitWithAck(guest, 'join_room', { roomId, playerName: 'Bob' });
+    expect(second.error).toBeUndefined();
+
+    const third = await connect();
+    const rejected = await emitWithAck(third, 'join_room', { roomId, playerName: 'Carol' });
+    expect(rejected.session).toBeNull();
+    expect(rejected.error?.code).toBe('ROOM_FULL');
+  });
+
+  it('rejects a client-supplied maxPlayers greater than two (MFP-11)', async () => {
+    const client = await connect();
+    const { session, error } = await emitWithAck(client, 'create_room', {
+      playerName: 'Alice',
+      maxPlayers: 4,
+    });
+    expect(session).toBeNull();
+    expect(error?.code).toBe('INVALID_PAYLOAD');
+    await expectServerResponsive(client);
+  });
+
   it('stays responsive after a burst of malformed requests', async () => {
     const client = await connect();
 

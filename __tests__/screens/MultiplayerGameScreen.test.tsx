@@ -97,6 +97,21 @@ describe('MultiplayerGameScreen', () => {
       expect(getByText(/40/)).toBeTruthy();
     });
 
+    it('should render the local player and exactly one opponent (MFP-11)', () => {
+      const { getByText } = render(
+        <MultiplayerGameScreen
+          transport={mockTransport}
+          initialState={mockInitialState}
+          initialHand={mockInitialHand}
+          onBack={mockOnBack}
+        />
+      );
+
+      // Local player and the single opponent (by display name) are shown.
+      expect(getByText('👤 You')).toBeTruthy();
+      expect(getByText('👤 Bob')).toBeTruthy();
+    });
+
     it('should display action buttons', () => {
       const { getByText } = render(
         <MultiplayerGameScreen
