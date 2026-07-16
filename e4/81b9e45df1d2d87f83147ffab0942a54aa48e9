@@ -1,0 +1,36 @@
+screens/StatsScreen.tsx
+  s_779d9c981bec79::t_54c1a5ffc121b5 27-31
+  s_779d9c981bec79::t_683f1b229470f9 32-34
+  s_779d9c981bec79::t_ee08e1ecc30062 36-45,47,49,52-58,60,66-68
+__tests__/screens/StatsScreen.test.tsx
+  s_779d9c981bec79::t_38a41ace7de922 13
+  s_779d9c981bec79::t_ff6ccdca15fcc3 262,272,283-323
+package.json
+  s_779d9c981bec79::t_570c7c2bdd88e6 17-19,21-22,24-25
+server/src/sessionToken.test.ts
+  s_779d9c981bec79::t_1e6b0acf32bf1c 62-68
+README.md
+  s_779d9c981bec79::t_541c2f8177422f 148-165
+__tests__/networking/localTransport.test.ts
+  s_779d9c981bec79::t_520d4da71a61a6 41
+__tests__/screens/MultiplayerGameScreen.test.tsx
+  s_779d9c981bec79::t_a7fe10fc7120d7 24-25
+__tests__/test-utils.tsx
+  s_779d9c981bec79::t_cb2f9b99cd7ba8 11,66,143,147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "e481b9e45df1d2d87f83147ffab0942a54aa48e9",
+  "prompts": {},
+  "sessions": {
+    "s_779d9c981bec79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67d45d4f-0ec4-4966-a4e4-a8cd8bb61f9c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
