@@ -34,6 +34,8 @@ const envSchema = z.object({
   SESSION_SIGNING_KEY: z.string().min(1).optional(),
   ERROR_REPORTING_DSN: z.string().optional(),
   RELEASE_VERSION: z.string().optional(),
+  /** Commit SHA of the running build, surfaced in health output (MFP-09). */
+  COMMIT_SHA: z.string().optional(),
 });
 
 export type NodeEnv = 'development' | 'test' | 'staging' | 'production';
@@ -57,6 +59,7 @@ export interface ServerConfig {
   /** Secret — never sent to the client. */
   errorReportingDsn: string | undefined;
   releaseVersion: string | undefined;
+  commitSha: string | undefined;
 }
 
 /** Raised when configuration is missing or invalid. */
@@ -113,6 +116,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     sessionSigningKey: c.SESSION_SIGNING_KEY,
     errorReportingDsn: c.ERROR_REPORTING_DSN,
     releaseVersion: c.RELEASE_VERSION,
+    commitSha: c.COMMIT_SHA,
   };
 }
 

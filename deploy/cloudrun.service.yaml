@@ -1,0 +1,60 @@
+# Reference single-instance deployment (MFP-09), Cloud Run (Knative) flavor.
+# Portable in spirit to ECS Fargate / Azure Container Apps: one instance, TLS
+# ingress (Cloud Run-managed), env + secret references, health probes.
+#
+# CRITICAL: maxScale is 1. The MVP has no shared state or multi-node Socket.IO
+# adapter, so it MUST NOT scale beyond a single instance. Replace REPLACE_WITH_*
+# placeholders at deploy time; promote by immutable image DIGEST, not a tag.
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: game-server
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "1" # single instance — do not raise
+    spec:
+      containerConcurrency: 1000
+      timeoutSeconds: 3600
+      containers:
+        - image: REPLACE_WITH_IMAGE_DIGEST # e.g. registry/game-server@sha256:...
+          ports:
+            - containerPort: 3001
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3001"
+            - name: CORS_ORIGINS
+              value: REPLACE_WITH_ALLOWED_ORIGINS
+            - name: LOG_LEVEL
+              value: info
+            - name: RELEASE_VERSION
+              value: REPLACE_WITH_RELEASE_VERSION
+            - name: COMMIT_SHA
+              value: REPLACE_WITH_COMMIT_SHA
+            # Secret reference — the key never appears in config or image.
+            - name: SESSION_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: session-signing-key
+                  key: latest
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: 3001
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: 3001
+          # Readiness (/readyz) flips to 503 during graceful drain so the load
+          # balancer stops routing before shutdown.
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi

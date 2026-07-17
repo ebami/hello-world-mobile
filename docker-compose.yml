@@ -1,0 +1,33 @@
+# Local production-like run of the game server (MFP-09).
+#   docker compose up --build
+# Single instance only — the MVP has no shared state or multi-node Socket.IO
+# adapter, so it must not be scaled horizontally.
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hello-world-mobile-server:local
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      # Provide a real key locally; NEVER commit a production key.
+      SESSION_SIGNING_KEY: "local-dev-only-not-a-real-secret"
+      CORS_ORIGINS: "http://localhost:8081,http://localhost:19006"
+      LOG_LEVEL: "info"
+      RELEASE_VERSION: "local"
+      COMMIT_SHA: "local"
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/livez"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    # Graceful drain: give the server time to close Socket.IO cleanly on stop.
+    stop_grace_period: 40s

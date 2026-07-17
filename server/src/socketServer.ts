@@ -27,6 +27,7 @@ import { armGraceTimer, cancelGraceTimer } from './graceTimers';
 import { loadConfig, type ServerConfig } from './config';
 import { rateLimiter, connectionTracker } from './rateLimiter';
 import { recordMetric } from './metricsHooks';
+import { isDraining } from './serverLifecycle';
 import type { TypedServer, TypedSocket } from './types';
 import {
   createRoomSchema,
@@ -93,6 +94,11 @@ function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerCo
 
   socket.on('create_room', (...args: unknown[]) => {
     guard('create_room', createRoomSchema, args, socket, (options, ack) => {
+      // Stop accepting new rooms while draining for shutdown (MFP-09).
+      if (isDraining()) {
+        ack?.(null, makeProtocolError('SERVER_CAPACITY_REACHED', 'The server is restarting. Please try again shortly.'));
+        return;
+      }
       const ip = socket.handshake.address;
       // Throttle room creation per IP (MFP-06).
       if (!rateLimiter.tryConsume(`create:${ip}`, config.maxEventsPerMinute, RATE_WINDOW_MS)) {
@@ -363,8 +369,32 @@ export function createSocketServer(overrides: Partial<ServerConfig> = {}): Socke
   app.use(cors({ origin: config.corsOrigins }));
   app.use(express.json({ limit: '16kb' }));
 
+  // Health / probes (MFP-09). Version + commit are surfaced for operability;
+  // no secret is ever included.
+  const healthInfo = () => ({
+    status: 'ok',
+    version: config.releaseVersion ?? null,
+    commit: config.commitSha ?? null,
+    timestamp: new Date().toISOString(),
+  });
+
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json(healthInfo());
+  });
+
+  // Liveness: the process is up. Independent of drain state.
+  app.get('/livez', (_req, res) => {
+    res.json({ status: 'ok' });
+  });
+
+  // Readiness: ready to accept work. Flips to 503 while draining so a load
+  // balancer stops routing new traffic before shutdown.
+  app.get('/readyz', (_req, res) => {
+    if (isDraining()) {
+      res.status(503).json({ status: 'draining' });
+    } else {
+      res.json({ ...healthInfo(), status: 'ready' });
+    }
   });
 
   const httpServer = createServer(app);

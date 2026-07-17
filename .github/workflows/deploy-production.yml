@@ -1,0 +1,45 @@
+name: Deploy Production
+
+# Promote a specific, already-staging-tested image to production. This never
+# rebuilds — it deploys the exact digest that passed staging smoke tests. The
+# `production` environment must be configured with required reviewers so the
+# promotion is gated by protected approval (MFP-09).
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_digest:
+        description: "Image digest (sha256:...) promoted from staging — do NOT rebuild"
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: production # protected: requires reviewer approval
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # TODO(deploy): deploy the exact promoted digest to the single production
+      #   instance — do not rebuild from source.
+      #   Reference (Cloud Run): gcloud run deploy game-server-prod \
+      #     --image "${{ vars.IMAGE_REPO }}@${{ inputs.image_digest }}" \
+      #     --max-instances 1 --min-instances 0 \
+      #     --set-env-vars NODE_ENV=production,COMMIT_SHA=${GITHUB_SHA} \
+      #     --set-secrets SESSION_SIGNING_KEY=session-signing-key:latest
+
+      - name: Smoke test production
+        run: SERVER_URL="${{ vars.PRODUCTION_URL }}" node scripts/smoke-test.mjs
+      # On failure, follow docs/runbooks/rollback.md to route traffic back to the
+      # previous healthy revision.

@@ -1,0 +1,30 @@
+# Keep the build context small — the server image only needs the root
+# manifests, packages/game-core, and server/. Everything else is excluded.
+node_modules
+**/node_modules
+**/dist
+.git
+.github
+.expo
+web-build
+coverage
+android
+ios
+assets
+screens
+components
+networking
+stores
+game
+utils
+__tests__
+App.tsx
+app.json
+app.config.ts
+eas.json
+*.zip
+*.log
+.env
+.env.*
+!.env.example
+docs

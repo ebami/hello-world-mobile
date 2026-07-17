@@ -1,0 +1,50 @@
+name: Deploy Staging
+
+# On merge to main: verify, build the image ONCE (tagged with the commit SHA),
+# scan it, push, deploy to the single staging instance, then smoke-test it.
+# The exact image tested here is what production later promotes (MFP-09).
+#
+# Reference implementation targets Cloud Run (max instances = 1). The deploy /
+# registry steps are placeholders — wire them to your cloud with OIDC and set
+# the repository variables referenced below (IMAGE_REPO, STAGING_URL).
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+
+      - name: Build image (tagged with commit SHA)
+        run: docker build -t "${IMAGE_REPO}:${GITHUB_SHA}" .
+        env:
+          IMAGE_REPO: ${{ vars.IMAGE_REPO }}
+
+      # TODO(deploy): scan the image (e.g. Trivy) and fail on high/critical CVEs.
+      # TODO(deploy): authenticate to the registry via OIDC and push:
+      #   docker push "${IMAGE_REPO}:${GITHUB_SHA}"
+      # TODO(deploy): deploy the pushed image to the single staging instance.
+      #   Reference (Cloud Run): gcloud run deploy game-server-staging \
+      #     --image "${IMAGE_REPO}:${GITHUB_SHA}" --max-instances 1 --min-instances 0 \
+      #     --set-env-vars NODE_ENV=production,RELEASE_VERSION=${GITHUB_SHA},COMMIT_SHA=${GITHUB_SHA} \
+      #     --set-secrets SESSION_SIGNING_KEY=session-signing-key:latest
+
+      - name: Smoke test staging
+        run: SERVER_URL="${{ vars.STAGING_URL }}" node scripts/smoke-test.mjs

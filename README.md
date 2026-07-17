@@ -163,6 +163,35 @@ Individual gates are also available: `npm run typecheck`, `npm run test:server`,
 `npm run build:web`. From a clean checkout, `npm ci && npm run verify` should be
 green.
 
+## Deployment
+
+The server ships as an immutable, health-checked container (MFP-09):
+
+- **Container:** root multi-stage `Dockerfile` (non-root, production deps only).
+  Run locally production-like with `docker compose up --build`.
+- **Health/probes:** `GET /livez` (liveness), `GET /readyz` (readiness — flips to
+  `503` while draining), and `GET /health` (version + commit SHA, no secrets).
+- **Graceful shutdown:** on `SIGTERM`/`SIGINT` the instance marks itself
+  not-ready, refuses new rooms, notifies clients, drains, then closes cleanly.
+- **Staged workflow:** `pr-verify` runs `npm run verify` on PRs; `deploy-staging`
+  builds one SHA-tagged image and smoke-tests staging; `deploy-production`
+  promotes the exact staging-tested digest behind protected approval.
+- **Single instance:** the reference config (`deploy/cloudrun.service.yaml`) sets
+  max instances to **1**. The MVP has no shared state or multi-node Socket.IO
+  adapter, so it must not scale horizontally.
+- **Rollback:** route to the previous healthy revision — see
+  [`docs/runbooks/rollback.md`](docs/runbooks/rollback.md).
+
+> **Limitation:** game state is in memory on a single instance, so a restart,
+> deploy, or rollback **loses active in-progress games** until persistent state
+> is implemented. Clients reconnect and can start new games.
+
+Post-deploy smoke test:
+
+```bash
+SERVER_URL="https://your-server" node scripts/smoke-test.mjs
+```
+
 ## How to Play
 
 ### Objective

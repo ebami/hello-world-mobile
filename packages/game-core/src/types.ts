@@ -287,6 +287,8 @@ export interface ServerToClientEvents {
   game_start: (state: PublicGameView, hand: PrivateHandPayload) => void;
   game_over: (winnerId: string | null, message: string) => void;
   error: (message: string) => void;
+  /** Planned graceful shutdown notice (MFP-09); clients may show a notice. */
+  server_shutdown: (message: string) => void;
 }
 
 /** Socket.IO client-to-server event definitions. */
