@@ -1,0 +1,19 @@
+components/DiscardPile.tsx
+  s_b7a473c447dd8c::t_6ac633c11e2cc9 132-134,136-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "cd966b1ba7cc755a8655d7abddc3164f7202399b",
+  "prompts": {},
+  "sessions": {
+    "s_b7a473c447dd8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86f97411-bd1a-49ae-96df-765fec69fef7",
+        "model": "unknown"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
