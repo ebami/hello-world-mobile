@@ -129,14 +129,15 @@ export default function DiscardPile({
         <Text style={styles.pileLabel}>DISCARD</Text>
       </View>
 
-      {/* Draw Pressure Indicator */}
+      {/* Draw Pressure Indicator. The entering (layout) animation lives on the
+          wrapper and the pulsing transform on the inner view, so the layout
+          animation can't overwrite the transform (Reanimated warning). */}
       {drawPressure > 0 && (
-        <Animated.View
-          entering={useAnimations ? ZoomIn.springify().damping(12) : undefined}
-          style={[styles.pressureContainer, pressureAnimatedStyle]}
-        >
-          <Text style={styles.pressureText}>⚠️ +{drawPressure}</Text>
-          <Text style={styles.pressureSubtext}>Draw Pressure</Text>
+        <Animated.View entering={useAnimations ? ZoomIn.springify().damping(12) : undefined}>
+          <Animated.View style={[styles.pressureContainer, pressureAnimatedStyle]}>
+            <Text style={styles.pressureText}>⚠️ +{drawPressure}</Text>
+            <Text style={styles.pressureSubtext}>Draw Pressure</Text>
+          </Animated.View>
         </Animated.View>
       )}
     </View>
