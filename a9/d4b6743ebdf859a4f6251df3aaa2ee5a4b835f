@@ -1,0 +1,51 @@
+components/ConfirmDialog.tsx
+  s_b7a473c447dd8c::t_76f3313400c90a 1-58,62-132,134-135,139-140
+  s_b7a473c447dd8c::t_644506c69822b8 59-61
+  s_b7a473c447dd8c::t_556b4cb74e132e 133,136-138
+components/Toast.tsx
+  s_b7a473c447dd8c::t_b94d63d56d352f 1-84
+screens/MultiplayerGameScreen.tsx
+  s_b7a473c447dd8c::t_f958970bd0f869 39
+  s_b7a473c447dd8c::t_e60cf4669bda52 13
+  s_b7a473c447dd8c::t_ded9d524f914c2 43-49
+  s_b7a473c447dd8c::t_087d49cb08de88 38,42
+  s_b7a473c447dd8c::t_058efed5503aba 95-102,105,112,138,187-196,298-326
+__tests__/networking/localTransport.test.ts
+  s_b7a473c447dd8c::t_bda35652a5926a 289-290,302-303,315-316
+__tests__/networking/socketTransport.test.ts
+  s_b7a473c447dd8c::t_d19a233eabe853 171,173
+__tests__/screens/MultiplayerGameScreen.test.tsx
+  s_b7a473c447dd8c::t_301ac22059b376 171-173,183,186,188-190,193-231,243,245,269,281,283,285-303
+components/GameOverOverlay.tsx
+  s_b7a473c447dd8c::t_0dd049a9052312 36-42,152,211,221,231,264-272,274-282
+components/index.ts
+  s_b7a473c447dd8c::t_1d3c60e642e9dd 7-8
+networking/localTransport.ts
+  s_b7a473c447dd8c::t_b146727ea8656f 268,388
+networking/socketTransport.ts
+  s_b7a473c447dd8c::t_7e347fb8fc1e89 171-172
+networking/types.ts
+  s_b7a473c447dd8c::t_604aea67e56f03 32,44,60-62
+packages/game-core/src/types.ts
+  s_b7a473c447dd8c::t_f3577473da1e22 279-285,295
+server/src/gameHandler.test.ts
+  s_b7a473c447dd8c::t_66ccc2ba956d64 725,756,768
+server/src/gameHandler.ts
+  s_b7a473c447dd8c::t_477c378a908f10 10,77,79,103,401
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "a9d4b6743ebdf859a4f6251df3aaa2ee5a4b835f",
+  "prompts": {},
+  "sessions": {
+    "s_b7a473c447dd8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86f97411-bd1a-49ae-96df-765fec69fef7",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
