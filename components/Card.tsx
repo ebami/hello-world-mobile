@@ -4,6 +4,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withSequence,
   withTiming,
   interpolate,
   Easing,
@@ -109,10 +110,15 @@ export default function Card({
 
   const handlePress = () => {
     if (onPress && !disabled) {
-      // Quick press feedback
-      scale.value = withSpring(0.95, { damping: 15, stiffness: 400 }, () => {
-        scale.value = withSpring(selected ? 1.05 : 1, { damping: 15, stiffness: 300 });
-      });
+      // Quick press feedback: squish, then settle back. Use withSequence rather
+      // than a withSpring completion callback that reassigns scale.value — that
+      // chained-callback pattern overflows the stack in Reanimated 4's web
+      // runtime (decorateAnimation recursion). This matches how DiscardPile and
+      // GameOverOverlay already sequence their animations.
+      scale.value = withSequence(
+        withSpring(0.95, { damping: 15, stiffness: 400 }),
+        withSpring(selected ? 1.05 : 1, { damping: 15, stiffness: 300 }),
+      );
       onPress();
     }
   };
