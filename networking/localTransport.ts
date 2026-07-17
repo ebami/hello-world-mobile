@@ -265,7 +265,7 @@ export class LocalTransport implements GameTransport {
       } else if (gameOver.winner === 1) {
         message = '😔 Bot Wins! Better luck next time.';
       }
-      this.callbacks.onGameOver?.(winnerId, message);
+      this.callbacks.onGameOver?.(winnerId, message, winnerId ? 'win' : 'draw');
       return;
     }
 
@@ -385,7 +385,7 @@ export class LocalTransport implements GameTransport {
       } else if (gameOver.winner === 1) {
         message = '😔 Bot Wins! Better luck next time.';
       }
-      this.callbacks.onGameOver?.(winnerId, message);
+      this.callbacks.onGameOver?.(winnerId, message, winnerId ? 'win' : 'draw');
     }
   }
 

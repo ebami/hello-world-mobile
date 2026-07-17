@@ -32,9 +32,14 @@ import { playWin, playLose } from '../utils/soundManager';
 interface GameOverOverlayProps {
   readonly visible: boolean;
   readonly winner: number | null; // 0 = player, 1 = opponent, null = draw
-  readonly onPlayAgain: () => void;
   readonly onMainMenu: () => void;
-  readonly onViewStats: () => void;
+  // Optional: multiplayer omits these (no local rematch / stats), so their
+  // buttons are hidden when no handler is supplied. Single-player passes both.
+  readonly onPlayAgain?: () => void;
+  readonly onViewStats?: () => void;
+  /** When the local player won because the opponent forfeited (left an active
+   * game). Only meaningful alongside a win; changes the subtitle wording. */
+  readonly forfeit?: boolean;
 }
 
 /**
@@ -144,6 +149,7 @@ export default function GameOverOverlay({
   onPlayAgain,
   onMainMenu,
   onViewStats,
+  forfeit = false,
 }: GameOverOverlayProps) {
   const fadeProgress = useSharedValue(0);
   const scaleProgress = useSharedValue(0.8);
@@ -202,7 +208,7 @@ export default function GameOverOverlay({
 
   const handlePlayAgain = () => {
     hapticButtonPress();
-    onPlayAgain();
+    onPlayAgain?.();
   };
 
   const handleMainMenu = () => {
@@ -212,7 +218,7 @@ export default function GameOverOverlay({
 
   const handleViewStats = () => {
     hapticButtonPress();
-    onViewStats();
+    onViewStats?.();
   };
 
   const getTitle = () => {
@@ -222,7 +228,7 @@ export default function GameOverOverlay({
   };
   
   const getSubtitle = () => {
-    if (isWin) return 'Congratulations! You won!';
+    if (isWin) return forfeit ? 'Your opponent left — you win by forfeit!' : 'Congratulations! You won!';
     if (isDraw) return "It's a tie game!";
     return 'Better luck next time!';
   };
@@ -255,21 +261,25 @@ export default function GameOverOverlay({
 
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={handlePlayAgain}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.primaryButtonText}>Play Again</Text>
-          </TouchableOpacity>
+          {onPlayAgain && (
+            <TouchableOpacity
+              style={[styles.button, styles.primaryButton]}
+              onPress={handlePlayAgain}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryButtonText}>Play Again</Text>
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity
-            style={[styles.button, styles.secondaryButton]}
-            onPress={handleViewStats}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.secondaryButtonText}>📊 View Stats</Text>
-          </TouchableOpacity>
+          {onViewStats && (
+            <TouchableOpacity
+              style={[styles.button, styles.secondaryButton]}
+              onPress={handleViewStats}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.secondaryButtonText}>📊 View Stats</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={[styles.button, styles.tertiaryButton]}

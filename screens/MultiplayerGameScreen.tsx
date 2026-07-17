@@ -5,13 +5,12 @@ import {
   Text,
   View,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { Card as CardType, Suit, PublicGameView, PrivateHandPayload } from '../game/types';
 import { getValidMoves } from '../game';
-import { PlayerArea, DiscardPile, ActionButtons, SuitPicker } from '../components';
+import { PlayerArea, DiscardPile, ActionButtons, SuitPicker, GameOverOverlay, ConfirmDialog, Toast, type ToastVariant } from '../components';
 import type { GameTransport, ConnectionStatus } from '../networking/types';
 
 interface MultiplayerGameScreenProps {
@@ -36,8 +35,18 @@ export default function MultiplayerGameScreen({
   // Local UI state
   const [selectedCards, setSelectedCards] = useState<CardType[]>([]);
   const [showSuitPicker, setShowSuitPicker] = useState(false);
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+  const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null);
   const [pendingPlay, setPendingPlay] = useState<CardType[] | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  // Win/lose screen. winner: 0 = you, 1 = opponent, null = draw (matches
+  // GameOverOverlay's convention). `forfeit` is true when the opponent left an
+  // active game. Driven by the server's game_over event.
+  const [gameOver, setGameOver] = useState<{ visible: boolean; winner: number | null; forfeit: boolean }>({
+    visible: false,
+    winner: null,
+    forfeit: false,
+  });
   // Default 'connected' since this screen is only mounted after a live session.
   // A transport drop moves this to 'connecting' until session resume succeeds,
   // gating gameplay so we never act on an unresumed connection (MFP-04).
@@ -83,25 +92,24 @@ export default function MultiplayerGameScreen({
           setHand(payload.hand);
         }
       },
-      onGameOver: (winnerId, message) => {
-        Alert.alert(
-          'Game Over',
-          message,
-          [
-            onPlayAgain && { text: 'Play Again', onPress: onPlayAgain },
-            { text: 'Main Menu', onPress: onBack },
-          ].filter(Boolean) as any
-        );
+      onGameOver: (winnerId, _message, reason) => {
+        // Map the server's winner id to GameOverOverlay's convention
+        // (0 = you, 1 = opponent, null = draw). Rendering the overlay works on
+        // web, unlike Alert.alert which react-native-web silently ignores.
+        // `reason` tells us a forfeit apart from a natural win without parsing
+        // the message; a forfeit is only ever seen by the remaining winner.
+        const winner = winnerId === null ? null : winnerId === myPlayerId ? 0 : 1;
+        setGameOver({ visible: true, winner, forfeit: reason === 'forfeit' });
       },
       onError: (error) => {
-        Alert.alert('Error', error);
+        setToast({ message: error, variant: 'error' });
         setIsProcessing(false);
       },
       // Gate gameplay on transport/session state (MFP-04): a reconnect reports
       // 'connecting' until resume succeeds, then 'connected'.
       onConnectionChange: setConnectionStatus,
     });
-  }, [transport, myPlayerId, onBack, onPlayAgain]);
+  }, [transport, myPlayerId]);
 
   const handleCardPress = useCallback((card: CardType) => {
     if (!isPlayerTurn || isProcessing || !isConnected) return;
@@ -127,7 +135,7 @@ export default function MultiplayerGameScreen({
           );
 
     if (!isValid) {
-      Alert.alert('Invalid Move', 'Those cards cannot be played together.');
+      setToast({ message: 'Those cards cannot be played together.', variant: 'error' });
       setSelectedCards([]);
       return;
     }
@@ -176,21 +184,16 @@ export default function MultiplayerGameScreen({
   }, [canDeclareLastCard, transport, myPlayerIndex]);
 
   const handleQuit = useCallback(() => {
-    Alert.alert(
-      'Quit Game?',
-      'Are you sure you want to quit? You will leave the game.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Quit', 
-          style: 'destructive', 
-          onPress: () => {
-            transport.disconnect();
-            onBack();
-          }
-        },
-      ]
-    );
+    // In-app confirmation (ConfirmDialog) rather than Alert.alert, which is a
+    // no-op on react-native-web — an Alert-based confirm never appears on web,
+    // so the quit button would do nothing there.
+    setShowQuitConfirm(true);
+  }, []);
+
+  const handleConfirmQuit = useCallback(() => {
+    setShowQuitConfirm(false);
+    transport.disconnect();
+    onBack();
   }, [transport, onBack]);
 
   // Get opponent data - find first opponent
@@ -291,6 +294,35 @@ export default function MultiplayerGameScreen({
           setShowSuitPicker(false);
           setPendingPlay(null);
         }}
+      />
+
+      {/* Game Over Overlay — win/lose screen. onPlayAgain is undefined in
+          multiplayer (no local rematch), so only Main Menu is shown. */}
+      <GameOverOverlay
+        visible={gameOver.visible}
+        winner={gameOver.winner}
+        forfeit={gameOver.forfeit}
+        onPlayAgain={onPlayAgain}
+        onMainMenu={onBack}
+      />
+
+      {/* Quit confirmation */}
+      <ConfirmDialog
+        visible={showQuitConfirm}
+        title="Quit Game?"
+        message="Are you sure you want to quit? You will leave the game."
+        confirmLabel="Quit"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={handleConfirmQuit}
+        onCancel={() => setShowQuitConfirm(false)}
+      />
+
+      {/* Transient notifications (invalid move, server errors) */}
+      <Toast
+        message={toast?.message ?? null}
+        variant={toast?.variant}
+        onHide={() => setToast(null)}
       />
     </SafeAreaView>
   );

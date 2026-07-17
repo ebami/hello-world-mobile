@@ -286,7 +286,8 @@ describe('LocalTransport', () => {
 
       expect(callbacks.onGameOver).toHaveBeenCalledWith(
         'player',
-        '🎉 Congratulations! You Win!'
+        '🎉 Congratulations! You Win!',
+        'win'
       );
     });
 
@@ -298,7 +299,8 @@ describe('LocalTransport', () => {
 
       expect(callbacks.onGameOver).toHaveBeenCalledWith(
         'bot',
-        '😔 Bot Wins! Better luck next time.'
+        '😔 Bot Wins! Better luck next time.',
+        'win'
       );
     });
 
@@ -310,7 +312,8 @@ describe('LocalTransport', () => {
 
       expect(callbacks.onGameOver).toHaveBeenCalledWith(
         null,
-        "🤝 It's a draw!"
+        "🤝 It's a draw!",
+        'draw'
       );
     });
   });

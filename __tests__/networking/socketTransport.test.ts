@@ -168,9 +168,9 @@ describe('SocketTransport', () => {
     it('should handle game_over event', () => {
       const handler = getEventHandler('game_over');
 
-      handler?.('player1', 'Player 1 wins!');
+      handler?.('player1', 'Player 1 wins!', 'win');
 
-      expect(callbacks.onGameOver).toHaveBeenCalledWith('player1', 'Player 1 wins!');
+      expect(callbacks.onGameOver).toHaveBeenCalledWith('player1', 'Player 1 wins!', 'win');
     });
 
     it('should handle error event', () => {

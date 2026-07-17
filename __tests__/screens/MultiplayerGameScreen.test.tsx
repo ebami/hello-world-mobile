@@ -168,8 +168,9 @@ describe('MultiplayerGameScreen', () => {
       });
     });
 
-    it('should show alert on game over', async () => {
-      render(
+    it('shows the victory overlay when the local player wins', async () => {
+      // myPlayerId is 'player-1' (from mockInitialHand)
+      const { getByText } = render(
         <MultiplayerGameScreen
           transport={mockTransport}
           initialState={mockInitialState}
@@ -179,19 +180,55 @@ describe('MultiplayerGameScreen', () => {
         />
       );
 
-      capturedCallbacks.onGameOver?.('player-1', 'You win!');
+      capturedCallbacks.onGameOver?.('player-1', 'You win!', 'win');
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'Game Over',
-          'You win!',
-          expect.any(Array)
-        );
+        expect(getByText('🎉 Victory!')).toBeTruthy();
+      });
+      expect(getByText('Congratulations! You won!')).toBeTruthy();
+      // The win/lose screen is a rendered overlay, not Alert (a no-op on web).
+      expect(Alert.alert).not.toHaveBeenCalled();
+    });
+
+    it('shows the defeat overlay when the opponent wins', async () => {
+      const { getByText } = render(
+        <MultiplayerGameScreen
+          transport={mockTransport}
+          initialState={mockInitialState}
+          initialHand={mockInitialHand}
+          onBack={mockOnBack}
+        />
+      );
+
+      capturedCallbacks.onGameOver?.('player-2', 'Bob wins!', 'win');
+
+      await waitFor(() => {
+        expect(getByText('😔 Defeat')).toBeTruthy();
       });
     });
 
-    it('should show alert on error', async () => {
-      render(
+    it('shows a forfeit victory when the opponent leaves an active game', async () => {
+      const { getByText } = render(
+        <MultiplayerGameScreen
+          transport={mockTransport}
+          initialState={mockInitialState}
+          initialHand={mockInitialHand}
+          onBack={mockOnBack}
+        />
+      );
+
+      // Winner is the local player (player-1); reason distinguishes it from a
+      // natural win without parsing the message.
+      capturedCallbacks.onGameOver?.('player-1', 'Alice wins by forfeit!', 'forfeit');
+
+      await waitFor(() => {
+        expect(getByText('🎉 Victory!')).toBeTruthy();
+      });
+      expect(getByText('Your opponent left — you win by forfeit!')).toBeTruthy();
+    });
+
+    it('shows a toast on error', async () => {
+      const { getByText } = render(
         <MultiplayerGameScreen
           transport={mockTransport}
           initialState={mockInitialState}
@@ -203,8 +240,9 @@ describe('MultiplayerGameScreen', () => {
       capturedCallbacks.onError?.('Something went wrong');
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Something went wrong');
+        expect(getByText('Something went wrong')).toBeTruthy();
       });
+      expect(Alert.alert).not.toHaveBeenCalled();
     });
   });
 
@@ -228,7 +266,7 @@ describe('MultiplayerGameScreen', () => {
   });
 
   describe('quit confirmation', () => {
-    it('should show quit confirmation when close button pressed', async () => {
+    it('shows an in-app confirmation dialog when close button pressed', async () => {
       const { getByText } = render(
         <MultiplayerGameScreen
           transport={mockTransport}
@@ -240,13 +278,29 @@ describe('MultiplayerGameScreen', () => {
 
       fireEvent.press(getByText('✕'));
 
+      // Rendered dialog (works on web), not Alert (a no-op there).
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'Quit Game?',
-          expect.any(String),
-          expect.any(Array)
-        );
+        expect(getByText('Quit Game?')).toBeTruthy();
       });
+      expect(Alert.alert).not.toHaveBeenCalled();
+    });
+
+    it('disconnects and navigates back when quit is confirmed', async () => {
+      const { getByText } = render(
+        <MultiplayerGameScreen
+          transport={mockTransport}
+          initialState={mockInitialState}
+          initialHand={mockInitialHand}
+          onBack={mockOnBack}
+        />
+      );
+
+      fireEvent.press(getByText('✕'));
+      await waitFor(() => expect(getByText('Quit Game?')).toBeTruthy());
+      fireEvent.press(getByText('Quit'));
+
+      expect(mockTransport.disconnect).toHaveBeenCalled();
+      expect(mockOnBack).toHaveBeenCalled();
     });
   });
 });

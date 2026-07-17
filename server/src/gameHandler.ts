@@ -7,6 +7,7 @@ import type {
   PrivateHandPayload,
   PlayCardsCommand,
   CommandMetadata,
+  GameOverReason,
 } from '@hello-world/game-core';
 import {
   generateDeck,
@@ -73,8 +74,9 @@ function announceGameOver(
   roomId: string,
   winnerId: string | null,
   message: string,
+  reason: GameOverReason,
 ): void {
-  io.to(roomId).emit('game_over', winnerId, message);
+  io.to(roomId).emit('game_over', winnerId, message, reason);
 }
 
 /**
@@ -98,7 +100,7 @@ export function forfeitAndComplete(
     : 'Game over.';
   recordMetric('forfeit');
   recordMetric('game_completed', { reason: 'forfeit' });
-  announceGameOver(io, roomId, result.winnerId, message);
+  announceGameOver(io, roomId, result.winnerId, message, 'forfeit');
 }
 
 function toHandPayload(state: GameState, roomId: string, playerId: string, playerIndex: number): PrivateHandPayload {
@@ -396,7 +398,7 @@ export function handleGameAction(
     const winner = winnerId ? roomManager.getPlayer(roomId, winnerId) : null;
     const message = winner ? `${winner.displayName} wins!` : "It's a draw!";
     recordMetric('game_completed', { reason: winnerId ? 'win' : 'draw' });
-    announceGameOver(io, roomId, winnerId, message);
+    announceGameOver(io, roomId, winnerId, message, winnerId ? 'win' : 'draw');
   }
 }
 

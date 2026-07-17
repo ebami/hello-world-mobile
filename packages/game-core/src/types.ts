@@ -276,6 +276,13 @@ export type GameAction =
 
 // ========== Socket Event Types ==========
 
+/**
+ * How a game ended. Sent explicitly with `game_over` so clients never have to
+ * parse the human-readable message to tell a natural win from a forfeit
+ * (opponent left) — see residual finding R1 on message-string coupling.
+ */
+export type GameOverReason = 'win' | 'draw' | 'forfeit';
+
 /** Socket.IO server-to-client event definitions. */
 export interface ServerToClientEvents {
   room_created: (room: RoomInfo) => void;
@@ -285,7 +292,7 @@ export interface ServerToClientEvents {
   hand_update: (payload: PrivateHandPayload) => void;
   player_action: (playerId: string, action: GameAction) => void;
   game_start: (state: PublicGameView, hand: PrivateHandPayload) => void;
-  game_over: (winnerId: string | null, message: string) => void;
+  game_over: (winnerId: string | null, message: string, reason: GameOverReason) => void;
   error: (message: string) => void;
   /** Planned graceful shutdown notice (MFP-09); clients may show a notice. */
   server_shutdown: (message: string) => void;

@@ -29,6 +29,7 @@ export type {
   JoinRoomOptions,
   ServerToClientEvents,
   ClientToServerEvents,
+  GameOverReason,
 } from '@hello-world/game-core';
 
 import type {
@@ -40,6 +41,7 @@ import type {
   ResumeResult,
   CreateRoomOptions,
   JoinRoomOptions,
+  GameOverReason,
 } from '@hello-world/game-core';
 
 /**
@@ -55,8 +57,9 @@ export interface TransportCallbacks {
   onRoomUpdated: (room: RoomInfo) => void;
   /** Called when the game starts */
   onGameStart: (state: PublicGameView, hand: PrivateHandPayload) => void;
-  /** Called when the game ends */
-  onGameOver: (winnerId: string | null, message: string) => void;
+  /** Called when the game ends. `reason` distinguishes a natural win from a
+   * draw or an opponent forfeit without parsing `message`. */
+  onGameOver: (winnerId: string | null, message: string, reason: GameOverReason) => void;
   /** Called when any player takes an action */
   onPlayerAction: (playerId: string, action: GameAction) => void;
   /** Called when an error occurs */

@@ -722,6 +722,7 @@ describe('GameHandler - lifecycle, seat mapping, and forfeits (MFP-05)', () => {
     expect(overs).toHaveLength(1);
     expect(overs[0].args[0]).toBe('h'); // opaque winner id from seat 0
     expect(overs[0].args[1]).toBe('Alice wins!');
+    expect(overs[0].args[2]).toBe('win');
     expect(roomManager.getPhase(roomId)).toBe('COMPLETED');
   });
 
@@ -752,6 +753,7 @@ describe('GameHandler - lifecycle, seat mapping, and forfeits (MFP-05)', () => {
     expect(overs).toHaveLength(1);
     expect(overs[0].args[0]).toBe('h');
     expect(overs[0].args[1]).toBe('Alice wins by forfeit!');
+    expect(overs[0].args[2]).toBe('forfeit');
   });
 
   it('forfeit awards the correct opponent regardless of who leaves', () => {
@@ -763,6 +765,7 @@ describe('GameHandler - lifecycle, seat mapping, and forfeits (MFP-05)', () => {
     const overs = emits.filter((e) => e.event === 'game_over');
     expect(overs[0].args[0]).toBe('p2');
     expect(overs[0].args[1]).toBe('Bob wins by forfeit!');
+    expect(overs[0].args[2]).toBe('forfeit');
   });
 });
 
