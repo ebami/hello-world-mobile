@@ -1,0 +1,71 @@
+server/src/logger.test.ts
+  s_779d9c981bec79::t_7793c33bcd7bf2 1-77
+server/src/config.ts
+  s_779d9c981bec79::t_6c20fbf3c58c09 65
+  s_779d9c981bec79::t_7b01fa0726f801 39-40
+  s_779d9c981bec79::t_13678839eb6bb1 123
+utils/clientErrorReporter.ts
+  s_779d9c981bec79::t_27bda45031a7d6 1-38
+server/src/errorReporter.test.ts
+  s_779d9c981bec79::t_c7e0cf56dd229c 1-68
+docs/runbooks/operations.md
+  s_779d9c981bec79::t_5bf6bb9ad1057c 1-86
+server/src/logger.ts
+  s_779d9c981bec79::t_3151ce84776cef 1-116,138,143-147
+  s_779d9c981bec79::t_3650873527498d 117-130,139,141
+  s_779d9c981bec79::t_60bb5437c90c6f 131-137,140,142
+server/src/errorReporter.ts
+  s_779d9c981bec79::t_3deeb07a45809c 1-96
+server/.env.example
+  s_779d9c981bec79::t_365ff15d9b19ac 30-33,35-36
+.env.example
+  s_779d9c981bec79::t_22ee6aa3bed748 17-20
+server/src/index.ts
+  s_779d9c981bec79::t_51509c74505336 24-27
+  s_779d9c981bec79::t_2463eaa94fa50d 28,48,93
+  s_779d9c981bec79::t_569a825c5bc4b7 8-16,19-21,23
+  s_779d9c981bec79::t_6a972838a0436b 31-35
+  s_779d9c981bec79::t_941749e3e3ac97 45-47
+  s_779d9c981bec79::t_15532b896703b0 90-92
+  s_779d9c981bec79::t_987b35f8dccb9e 62,68,76,87-89,109-110
+server/src/metrics.test.ts
+  s_779d9c981bec79::t_d9591735f5c164 1-95
+server/src/metrics.ts
+  s_779d9c981bec79::t_a64b7a8fffcf15 1-87
+__tests__/utils/clientErrorReporter.test.ts
+  s_779d9c981bec79::t_e334104f15575b 1-24
+server/src/roomManager.ts
+  s_779d9c981bec79::t_c3504188f6214c 413-421
+  s_779d9c981bec79::t_b90ffd97084e92 110
+  s_779d9c981bec79::t_387240b8449f8c 9
+  s_779d9c981bec79::t_e103d504df22f7 181
+  s_779d9c981bec79::t_aad20079955b94 451
+  s_779d9c981bec79::t_00d02fbdd0c7ce 188,191
+  s_779d9c981bec79::t_1cfe5dd14ff006 148
+components/ErrorBoundary.tsx
+  s_779d9c981bec79::t_34d2154e811395 8,32-33
+server/src/gameHandler.ts
+  s_779d9c981bec79::t_1c60775c36f9ac 22-23,99-100,398,439
+server/src/metricsHooks.ts
+  s_779d9c981bec79::t_9aecc34c7b28c6 19-26
+server/src/socketServer.ts
+  s_779d9c981bec79::t_8bc957b34db23f 30,32,91,189,200,229-230,315,399-418
+server/src/validation/validatedHandler.ts
+  s_779d9c981bec79::t_d33fcfb6a95170 27-28,155-158,168-172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "60879f51553c14e9e920a2e92ccf6092020a73a1",
+  "prompts": {},
+  "sessions": {
+    "s_779d9c981bec79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67d45d4f-0ec4-4966-a4e4-a8cd8bb61f9c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
