@@ -131,38 +131,43 @@ export default function Card({
     ? FadeInDown.delay(entryDelay).duration(300).springify()
     : undefined;
 
+  // Layout (entering) animation lives on an outer wrapper, while the transform
+  // (scale/translateY) stays on the card body. Keeping them on separate views
+  // avoids Reanimated's "transform may be overwritten by a layout animation"
+  // warning — and the visual conflict behind it.
   const cardContent = (
-    <Animated.View
-      entering={enteringAnimation}
-      style={[
-        styles.cardContainer,
-        dimensions,
-        containerAnimatedStyle,
-        selected && styles.selectedBorder,
-        disabled && styles.disabled,
-      ]}
-      accessibilityLabel={faceDown ? 'Face down card' : `${card.rank} of ${getSuitName(card.suit)}`}
-      accessibilityRole="button"
-    >
-      {/* Front face */}
-      <Animated.View style={[styles.cardFace, dimensions, frontAnimatedStyle]}>
-        <Image
-          source={frontImage}
-          style={[styles.cardImage, dimensions]}
-          resizeMode="contain"
-        />
-      </Animated.View>
-      
-      {/* Back face */}
-      <Animated.View style={[styles.cardFace, dimensions, backAnimatedStyle]}>
-        <Image
-          source={backImage}
-          style={[styles.cardImage, dimensions]}
-          resizeMode="contain"
-        />
-      </Animated.View>
+    <Animated.View entering={enteringAnimation}>
+      <Animated.View
+        style={[
+          styles.cardContainer,
+          dimensions,
+          containerAnimatedStyle,
+          selected && styles.selectedBorder,
+          disabled && styles.disabled,
+        ]}
+        accessibilityLabel={faceDown ? 'Face down card' : `${card.rank} of ${getSuitName(card.suit)}`}
+        accessibilityRole="button"
+      >
+        {/* Front face */}
+        <Animated.View style={[styles.cardFace, dimensions, frontAnimatedStyle]}>
+          <Image
+            source={frontImage}
+            style={[styles.cardImage, dimensions]}
+            resizeMode="contain"
+          />
+        </Animated.View>
 
-      {selected && <View style={[styles.selectedOverlay, dimensions]} />}
+        {/* Back face */}
+        <Animated.View style={[styles.cardFace, dimensions, backAnimatedStyle]}>
+          <Image
+            source={backImage}
+            style={[styles.cardImage, dimensions]}
+            resizeMode="contain"
+          />
+        </Animated.View>
+
+        {selected && <View style={[styles.selectedOverlay, dimensions]} />}
+      </Animated.View>
     </Animated.View>
   );
 
