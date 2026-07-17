@@ -1,0 +1,54 @@
+Dockerfile
+  s_779d9c981bec79::t_25d2c688c812f9 1-41
+.dockerignore
+  s_779d9c981bec79::t_723289a3574467 1-30
+.github/workflows/pr-verify.yml
+  s_779d9c981bec79::t_1ecfb6368eac5e 1-20
+.github/workflows/deploy-production.yml
+  s_779d9c981bec79::t_35feb6079529c5 1-45
+server/src/config.ts
+  s_779d9c981bec79::t_2f460e0837da3d 62
+  s_779d9c981bec79::t_3e18567fc43e52 37-38
+  s_779d9c981bec79::t_a5a5edc827db3c 119
+docker-compose.yml
+  s_779d9c981bec79::t_f09b1e7978b4f4 1-33
+server/src/index.ts
+  s_779d9c981bec79::t_0eebd301ce66ef 5,7,25,33-36
+  s_779d9c981bec79::t_6b5da0b1aadefa 37-39
+  s_779d9c981bec79::t_a7bf4b70d16ba0 40-65
+server/src/socketServer.ts
+  s_779d9c981bec79::t_31a774bbb242a6 30
+  s_779d9c981bec79::t_756b794c233042 97-101,372-380,382-397
+server/src/health.test.ts
+  s_779d9c981bec79::t_9359c7534343bb 1-104
+scripts/smoke-test.mjs
+  s_779d9c981bec79::t_0a821d4f807d8c 1-113
+.github/workflows/deploy-staging.yml
+  s_779d9c981bec79::t_399ba7848ec8dc 1-50
+docs/runbooks/rollback.md
+  s_779d9c981bec79::t_3e9e2de67cc019 1-52
+deploy/cloudrun.service.yaml
+  s_779d9c981bec79::t_8ea341d84b7a90 1-60
+server/src/serverLifecycle.ts
+  s_779d9c981bec79::t_3ed325411117c4 1-28
+packages/game-core/src/types.ts
+  s_779d9c981bec79::t_06593bbe8e6c1a 290-291
+README.md
+  s_779d9c981bec79::t_71393423efa7c2 166-194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "0b56805c3c2397ba4d89cde631dfaee7ec81f552",
+  "prompts": {},
+  "sessions": {
+    "s_779d9c981bec79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67d45d4f-0ec4-4966-a4e4-a8cd8bb61f9c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
