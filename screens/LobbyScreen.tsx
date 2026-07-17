@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -63,13 +62,15 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
   }, [setConnectionStatus, setError]);
 
   const handleCreateRoom = useCallback(async () => {
+    // Validation and errors surface through the inline error banner (driven by
+    // setError) rather than Alert.alert, which is a no-op on react-native-web.
     if (!playerName.trim()) {
-      Alert.alert('Name Required', 'Please enter your name to create a room.');
+      setError('Please enter your name to create a room.');
       return;
     }
 
     if (!transport || connectionStatus !== 'connected') {
-      Alert.alert('Not Connected', 'Please wait for connection to the server.');
+      setError('Please wait for connection to the server.');
       return;
     }
 
@@ -92,7 +93,6 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create room';
       setError(message);
-      Alert.alert('Error', message);
     } finally {
       setIsCreating(false);
     }
@@ -106,18 +106,18 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
     console.log('[LobbyScreen] connectionStatus:', connectionStatus);
     
     if (!playerName.trim()) {
-      Alert.alert('Name Required', 'Please enter your name to join a room.');
+      setError('Please enter your name to join a room.');
       return;
     }
 
     if (!roomCode.trim()) {
-      Alert.alert('Room Code Required', 'Please enter the room code to join.');
+      setError('Please enter the room code to join.');
       return;
     }
 
     if (!transport || connectionStatus !== 'connected') {
       console.log('[LobbyScreen] Not connected - transport:', !!transport, 'status:', connectionStatus);
-      Alert.alert('Not Connected', 'Please wait for connection to the server.');
+      setError('Please wait for connection to the server.');
       return;
     }
 
@@ -138,7 +138,6 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
       const message = err instanceof Error ? err.message : 'Failed to join room';
       console.log('[LobbyScreen] Join error:', message);
       setError(message);
-      Alert.alert('Error', message);
     } finally {
       setIsJoining(false);
     }

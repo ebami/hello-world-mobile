@@ -4,7 +4,6 @@ import {
   Text,
   View,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -20,7 +19,7 @@ import {
   declareLastCard,
 } from '../game';
 import { getComputerMove, getBotTurnDelay, type Difficulty } from '../game/ai';
-import { PlayerArea, DiscardPile, ActionButtons, SuitPicker, GameOverOverlay } from '../components';
+import { PlayerArea, DiscardPile, ActionButtons, SuitPicker, GameOverOverlay, ConfirmDialog, Toast, type ToastVariant } from '../components';
 import { useStatsStore } from '../stores/statsStore';
 import {
   hapticButtonPress,
@@ -121,6 +120,8 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain, onViewStat
   const [pendingPlay, setPendingPlay] = useState<CardType[] | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showGameOver, setShowGameOver] = useState(false);
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+  const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null);
 
   // Stats tracking
   const recordGameResult = useStatsStore((state) => state.recordGameResult);
@@ -213,7 +214,7 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain, onViewStat
 
     if (!isValid) {
       hapticInvalidMove();
-      Alert.alert('Invalid Move', 'Those cards cannot be played together.');
+      setToast({ message: 'Those cards cannot be played together.', variant: 'error' });
       setSelectedCards([]);
       return;
     }
@@ -268,14 +269,13 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain, onViewStat
 
   const handleQuit = useCallback(() => {
     hapticButtonPress();
-    Alert.alert(
-      'Quit Game?',
-      'Are you sure you want to quit? Progress will be lost.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Quit', style: 'destructive', onPress: onBack },
-      ]
-    );
+    // In-app confirmation instead of Alert.alert (a no-op on react-native-web).
+    setShowQuitConfirm(true);
+  }, []);
+
+  const handleConfirmQuit = useCallback(() => {
+    setShowQuitConfirm(false);
+    onBack();
   }, [onBack]);
 
   const handleGameOverPlayAgain = useCallback(() => {
@@ -391,6 +391,25 @@ export default function GameScreen({ difficulty, onBack, onPlayAgain, onViewStat
         onPlayAgain={handleGameOverPlayAgain}
         onMainMenu={handleGameOverMainMenu}
         onViewStats={handleViewStats}
+      />
+
+      {/* Quit confirmation */}
+      <ConfirmDialog
+        visible={showQuitConfirm}
+        title="Quit Game?"
+        message="Are you sure you want to quit? Progress will be lost."
+        confirmLabel="Quit"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={handleConfirmQuit}
+        onCancel={() => setShowQuitConfirm(false)}
+      />
+
+      {/* Transient notifications (invalid move) */}
+      <Toast
+        message={toast?.message ?? null}
+        variant={toast?.variant}
+        onHide={() => setToast(null)}
       />
     </SafeAreaView>
   );

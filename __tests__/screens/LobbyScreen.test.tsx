@@ -4,7 +4,6 @@
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
 import LobbyScreen from '../../screens/LobbyScreen';
 import { useSessionStore } from '../../stores/sessionStore';
 import { SocketTransport } from '../../networking';
@@ -19,9 +18,6 @@ jest.mock('../../networking', () => ({
     joinRoom: jest.fn(),
   })),
 }));
-
-// Mock Alert
-jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
 
 describe('LobbyScreen', () => {
   const mockOnBack = jest.fn();
@@ -121,7 +117,7 @@ describe('LobbyScreen', () => {
   });
 
   describe('create room', () => {
-    it('should alert when name is empty', () => {
+    it('should show an inline error when name is empty', async () => {
       useSessionStore.getState().setConnectionStatus('connected');
 
       const { getByText } = render(
@@ -130,24 +126,23 @@ describe('LobbyScreen', () => {
 
       fireEvent.press(getByText('Create Room'));
 
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Name Required',
-        'Please enter your name to create a room.'
-      );
+      await waitFor(() => {
+        expect(getByText('Please enter your name to create a room.')).toBeTruthy();
+      });
     });
 
     it('should disable button when not connected', () => {
       useSessionStore.getState().setConnectionStatus('disconnected');
 
-      const { getByText } = render(
+      const { getByText, queryByText } = render(
         <LobbyScreen onBack={mockOnBack} onRoomJoined={mockOnRoomJoined} />
       );
 
-      // When disconnected, pressing the button should not trigger any alert
+      // When disconnected the button is disabled, so pressing it does nothing —
+      // no validation error should appear.
       fireEvent.press(getByText('Create Room'));
 
-      // No validation alert should be called since button is disabled
-      expect(Alert.alert).not.toHaveBeenCalled();
+      expect(queryByText('Please enter your name to create a room.')).toBeNull();
     });
 
     it('should call createRoom when connected with valid name', async () => {
@@ -186,7 +181,7 @@ describe('LobbyScreen', () => {
   });
 
   describe('join room', () => {
-    it('should alert when name is empty', () => {
+    it('should show an inline error when name is empty', async () => {
       useSessionStore.getState().setConnectionStatus('connected');
 
       const { getByText, getByPlaceholderText } = render(
@@ -196,13 +191,12 @@ describe('LobbyScreen', () => {
       fireEvent.changeText(getByPlaceholderText('Enter room code'), 'ABC123');
       fireEvent.press(getByText('Join Room'));
 
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Name Required',
-        'Please enter your name to join a room.'
-      );
+      await waitFor(() => {
+        expect(getByText('Please enter your name to join a room.')).toBeTruthy();
+      });
     });
 
-    it('should alert when room code is empty', () => {
+    it('should show an inline error when room code is empty', async () => {
       useSessionStore.getState().setConnectionStatus('connected');
 
       const { getByText, getByPlaceholderText } = render(
@@ -212,24 +206,23 @@ describe('LobbyScreen', () => {
       fireEvent.changeText(getByPlaceholderText('Enter your name'), 'Alice');
       fireEvent.press(getByText('Join Room'));
 
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Room Code Required',
-        'Please enter the room code to join.'
-      );
+      await waitFor(() => {
+        expect(getByText('Please enter the room code to join.')).toBeTruthy();
+      });
     });
 
     it('should disable button when not connected', () => {
       useSessionStore.getState().setConnectionStatus('disconnected');
 
-      const { getByText } = render(
+      const { getByText, queryByText } = render(
         <LobbyScreen onBack={mockOnBack} onRoomJoined={mockOnRoomJoined} />
       );
 
-      // When disconnected, pressing the button should not trigger any alert
+      // When disconnected the button is disabled, so pressing it does nothing —
+      // no validation error should appear.
       fireEvent.press(getByText('Join Room'));
 
-      // No validation alert should be called since button is disabled
-      expect(Alert.alert).not.toHaveBeenCalled();
+      expect(queryByText('Please enter the room code to join.')).toBeNull();
     });
   });
 
