@@ -10,7 +10,7 @@
     "src"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --build --force",
     "dev": "tsc --watch",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },

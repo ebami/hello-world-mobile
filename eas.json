@@ -9,19 +9,22 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_ENVIRONMENT": "development"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_ENVIRONMENT": "preview"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_ENVIRONMENT": "production"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
