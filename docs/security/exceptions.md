@@ -35,33 +35,11 @@ Every exception MUST include all of:
 
 ## Active exceptions
 
-Pre-existing High/moderate advisories in the **Expo / React Native build
-toolchain** (transitive). `npm audit fix` (non-breaking) has been applied;
-the residual findings require a breaking toolchain upgrade and are tracked for
-Dependabot-driven remediation. The CI gate hard-blocks CRITICAL; new High+
-dependencies are blocked by the dependency-review gate on every PR.
+_(none)_
 
-```
-- id: GHSA-96hv-2xvq-fx4p            # ws 6.x/7.x memory-exhaustion DoS (High)
-  justification: >
-    Transitive dependency of the Expo/React Native build toolchain
-    (@react-native-community/cli et al.), not the server's Socket.IO stack,
-    which uses ws@8. The vulnerable ws is not reachable in the deployed server
-    runtime, and ws is not run as a server in the mobile client. The fix
-    requires a breaking toolchain upgrade.
-  compensating_control: >
-    The production server enforces maxHttpBufferSize (16 KB) plus connection
-    and per-event rate limits and payload caps (MFP-06), mitigating WebSocket
-    memory-exhaustion DoS on the actual server surface.
-  owner: security-owner (replace with a named owner)
-  expiry: 2026-10-15
-
-- id: transitive-moderate-toolchain  # remaining moderate advisories (audit)
-  justification: >
-    Moderate-severity DoS/ReDoS advisories in transitive build-toolchain
-    dependencies (brace-expansion, minimatch, js-yaml, postcss, etc.). Below
-    the CRITICAL hard-block threshold; not in the server request path.
-  compensating_control: Dependabot weekly updates + dependency-review on PRs.
-  owner: security-owner (replace with a named owner)
-  expiry: 2026-10-15
-```
+There are no High/Critical runtime dependency findings — `npm audit fix`
+(non-breaking) plus a `ws` override (`overrides.ws: ^8.18.0`, forcing the
+Expo/React-Native build toolchain onto the same safe `ws@8` the Socket.IO stack
+uses) cleared the last High (GHSA-96hv-2xvq-fx4p). Residual **moderate**
+transitive advisories in the build toolchain are below the High+ gate threshold
+and are tracked for Dependabot-driven remediation.

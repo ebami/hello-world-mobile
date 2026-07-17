@@ -48,14 +48,11 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      # Hard-block on CRITICAL runtime vulnerabilities (unwaivable). NEW High+
-      # dependencies are blocked separately by the dependency-review job above;
-      # pre-existing transitive High findings are tracked in
-      # docs/security/exceptions.md and auto-remediated by Dependabot. This split
-      # keeps the gate meaningful without being permanently red on toolchain
-      # transitive advisories.
-      - name: npm audit (runtime deps — block CRITICAL)
-        run: npm audit --audit-level=critical --omit=dev
+      # Block on High+ in runtime dependencies. Document any temporary waiver in
+      # docs/security/exceptions.md (moderate findings are below this threshold
+      # and are handled by Dependabot + the dependency-review gate above).
+      - name: npm audit (runtime deps — block High+)
+        run: npm audit --audit-level=high --omit=dev
 
   osv-scan:
     runs-on: ubuntu-latest
