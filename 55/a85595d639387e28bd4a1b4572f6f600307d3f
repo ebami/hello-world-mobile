@@ -1,0 +1,25 @@
+package.json
+  s_779d9c981bec79::t_87120bf3530fcf 58-60
+docs/security/exceptions.md
+  s_779d9c981bec79::t_5f57537b5b789c 38-45
+.github/workflows/security-pr.yml
+  s_779d9c981bec79::t_f8c32ffc83d2fc 51-55
+package-lock.json
+  s_779d9c981bec79::t_4d12b2046abf9f 14958-14960,14963,14967
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "55a85595d639387e28bd4a1b4572f6f600307d3f",
+  "prompts": {},
+  "sessions": {
+    "s_779d9c981bec79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67d45d4f-0ec4-4966-a4e4-a8cd8bb61f9c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
