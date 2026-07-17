@@ -37,9 +37,10 @@ Every exception MUST include all of:
 
 _(none)_
 
-There are no High/Critical runtime dependency findings — `npm audit fix`
-(non-breaking) plus a `ws` override (`overrides.ws: ^8.18.0`, forcing the
-Expo/React-Native build toolchain onto the same safe `ws@8` the Socket.IO stack
-uses) cleared the last High (GHSA-96hv-2xvq-fx4p). Residual **moderate**
+There are no High/Critical runtime dependency findings. The last High
+(GHSA-96hv-2xvq-fx4p, vulnerable `ws` 6.x/7.x in the Expo/React-Native build
+toolchain) was cleared by upgrading to **Expo SDK 57 / React Native 0.86**,
+which brings patched `ws` (7.5.12 + 8.21.1) — so the earlier `overrides.ws`
+workaround is no longer needed and has been removed. Residual **moderate**
 transitive advisories in the build toolchain are below the High+ gate threshold
 and are tracked for Dependabot-driven remediation.

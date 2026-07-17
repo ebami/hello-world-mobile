@@ -9,15 +9,14 @@ const config = getDefaultConfig(__dirname);
 const gameCoreRoot = path.resolve(__dirname, 'packages', 'game-core');
 config.watchFolders = [gameCoreRoot];
 
-// Ensure proper resolution for web
-config.resolver.sourceExts = ['js', 'jsx', 'json', 'ts', 'tsx', 'cjs', 'mjs'];
-config.resolver.assetExts = config.resolver.assetExts.filter(ext => ext !== 'svg');
+// Extend (never replace) Expo's default source extensions so we don't drop
+// any extension Expo's Metro config expects.
+config.resolver.sourceExts = Array.from(
+  new Set([...config.resolver.sourceExts, 'ts', 'tsx', 'cjs', 'mjs']),
+);
 
-// Handle react-native-reanimated for web
-// Prefer 'source' field so Metro resolves the TS source of workspace packages
+// Prefer the 'source' field so Metro resolves the TS source of workspace
+// packages (game-core) directly.
 config.resolver.resolverMainFields = ['source', 'react-native', 'browser', 'main'];
-
-// Platform-specific extensions - web will use .web.ts files
-config.resolver.platforms = ['ios', 'android', 'web'];
 
 module.exports = config;
