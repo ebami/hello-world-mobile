@@ -205,6 +205,40 @@ Post-deploy smoke test:
 SERVER_URL="https://your-server" node scripts/smoke-test.mjs
 ```
 
+### Fly.io deployment
+
+The current development server is deployed at
+`https://black-jack-server.fly.dev`. Its Fly configuration is committed in
+[`fly.toml`](./fly.toml); it builds the root `Dockerfile`, listens on port
+`3001`, and runs with `NODE_ENV=production`.
+
+Deploy from the repository root after authenticating with Fly:
+
+```bash
+flyctl deploy
+flyctl scale count 1 --yes
+flyctl status
+```
+
+Set `SESSION_SIGNING_KEY` with `flyctl secrets set`; never add it to
+`fly.toml`, `.env.example`, or a client `EXPO_PUBLIC_*` variable. The server
+must remain at one Fly Machine because room and game state are held in memory.
+
+To use the hosted server from a local Expo development client, add this to the
+gitignored root `.env` file, restart Metro, and reload the app:
+
+```dotenv
+EXPO_PUBLIC_GAME_SERVER_URL=https://black-jack-server.fly.dev
+```
+
+The same public variable is configured in EAS's `development` environment so
+future development builds use the hosted server. Run the smoke test after each
+deployment:
+
+```bash
+SERVER_URL="https://black-jack-server.fly.dev" node scripts/smoke-test.mjs
+```
+
 ## How to Play
 
 ### Objective
