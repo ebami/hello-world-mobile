@@ -31,6 +31,17 @@ jobs:
           cache: npm
       - run: npm ci
 
+      # Mandatory release gate (MFP-12): re-scan the EXACT promoted digest before
+      # it reaches production. Critical CVEs block promotion. No continue-on-error.
+      - name: Trivy scan promoted digest (fail on CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0 # TODO: pin by commit SHA
+        with:
+          scan-type: image
+          image-ref: ${{ vars.IMAGE_REPO }}@${{ inputs.image_digest }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
       # TODO(deploy): deploy the exact promoted digest to the single production
       #   instance — do not rebuild from source.
       #   Reference (Cloud Run): gcloud run deploy game-server-prod \

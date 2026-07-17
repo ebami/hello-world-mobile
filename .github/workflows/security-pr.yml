@@ -1,0 +1,77 @@
+name: Security (PR)
+
+# Supply-chain + source security gates on every pull request (MFP-12).
+#
+# Forked-PR safety: the `pull_request` trigger (NOT `pull_request_target`) plus
+# read-only default permissions means fork runs never receive deployment
+# credentials or production secrets. Mandatory gates must NOT use
+# continue-on-error — a failure blocks the merge.
+#
+# Third-party actions should be pinned to an immutable commit SHA; the version
+# tags below are placeholders to replace with SHAs during setup.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependency review (block High+)
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - uses: github/codeql-action/analyze@v3
+
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Hard-block on CRITICAL runtime vulnerabilities (unwaivable). NEW High+
+      # dependencies are blocked separately by the dependency-review job above;
+      # pre-existing transitive High findings are tracked in
+      # docs/security/exceptions.md and auto-remediated by Dependabot. This split
+      # keeps the gate meaningful without being permanently red on toolchain
+      # transitive advisories.
+      - name: npm audit (runtime deps — block CRITICAL)
+        run: npm audit --audit-level=critical --omit=dev
+
+  osv-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: OSV scanner
+        uses: google/osv-scanner-action@v1 # TODO: pin by commit SHA
+        with:
+          scan-args: |-
+            --lockfile=package-lock.json
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the scan covers the whole diff range
+      - name: Gitleaks (verified secret blocks the build)
+        uses: gitleaks/gitleaks-action@v2 # TODO: pin by commit SHA

@@ -163,6 +163,19 @@ Individual gates are also available: `npm run typecheck`, `npm run test:server`,
 `npm run build:web`. From a clean checkout, `npm ci && npm run verify` should be
 green.
 
+## Security Gates
+
+Supply-chain and source scanning gate every change and release (MFP-12):
+
+- **PR gates** (`security-pr.yml`): GitHub dependency review (blocks new High+),
+  CodeQL, `npm audit` (blocks Critical), OSV scan, and Gitleaks secret scan.
+- **Image gates** (`security-image.yml` + the deploy workflows): Trivy scans the
+  built/promoted image (blocks Critical) and emits a CycloneDX SBOM artifact.
+- **Dependabot** (`.github/dependabot.yml`): grouped weekly dependency updates.
+- **Exceptions:** time-boxed waivers with owner + expiry —
+  [`docs/security/exceptions.md`](docs/security/exceptions.md).
+- **Reproduce locally:** [`docs/security/local-scans.md`](docs/security/local-scans.md).
+
 ## Deployment
 
 The server ships as an immutable, health-checked container (MFP-09):

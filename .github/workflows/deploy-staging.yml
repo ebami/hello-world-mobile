@@ -37,7 +37,33 @@ jobs:
         env:
           IMAGE_REPO: ${{ vars.IMAGE_REPO }}
 
-      # TODO(deploy): scan the image (e.g. Trivy) and fail on high/critical CVEs.
+      # Mandatory release gate (MFP-12): critical container CVEs block the
+      # deploy. No continue-on-error. This is the exact image that gets promoted.
+      - name: Trivy image scan (fail on CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0 # TODO: pin by commit SHA
+        with:
+          scan-type: image
+          image-ref: ${{ vars.IMAGE_REPO }}:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Generate SBOM (CycloneDX)
+        uses: aquasecurity/trivy-action@0.28.0 # TODO: pin by commit SHA
+        with:
+          scan-type: image
+          image-ref: ${{ vars.IMAGE_REPO }}:${{ github.sha }}
+          format: cyclonedx
+          output: sbom.cdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90
+
+      # TODO(deploy): authenticate to the registry via OIDC and push:
       # TODO(deploy): authenticate to the registry via OIDC and push:
       #   docker push "${IMAGE_REPO}:${GITHUB_SHA}"
       # TODO(deploy): deploy the pushed image to the single staging instance.

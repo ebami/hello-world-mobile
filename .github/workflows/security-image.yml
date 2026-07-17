@@ -1,0 +1,53 @@
+name: Security (Image)
+
+# Container security + SBOM for the release image (MFP-12). Runs on main after
+# the image is built; the same scan (on the promoted digest) gates staging and
+# production deploys. Critical container vulnerabilities block the build. No
+# continue-on-error on the mandatory scan.
+#
+# Third-party actions should be pinned by commit SHA (tags below are placeholders).
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  image-scan-and-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t game-server:${GITHUB_SHA} .
+
+      - name: Trivy image scan (fail on CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0 # TODO: pin by commit SHA
+        with:
+          scan-type: image
+          image-ref: game-server:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          output: trivy-report.txt
+
+      - name: Generate SBOM (CycloneDX) for the built image
+        uses: aquasecurity/trivy-action@0.28.0 # TODO: pin by commit SHA
+        with:
+          scan-type: image
+          image-ref: game-server:${{ github.sha }}
+          format: cyclonedx
+          output: sbom.cdx.json
+
+      - name: Upload SBOM + scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-${{ github.sha }}
+          path: |
+            sbom.cdx.json
+            trivy-report.txt
+          retention-days: 90
