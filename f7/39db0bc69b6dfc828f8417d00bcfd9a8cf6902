@@ -1,0 +1,60 @@
+server/src/gameHandler.ts
+  s_755438b5ce44c9::t_7bca16b8e2a75c 116
+  s_779d9c981bec79::t_b79b40639361d7 90,93
+  s_779d9c981bec79::t_80d80f0360b947 101,234
+  s_779d9c981bec79::t_8b35a12ba39c35 98,100
+  s_779d9c981bec79::t_39aceb1e083b33 233
+server/src/roomManager.test.ts
+  s_779d9c981bec79::t_4146ed0cca8f2b 56-57
+__tests__/screens/WaitingRoomScreen.test.tsx
+  s_779d9c981bec79::t_52e21c868db2c4 111-113
+server/src/roomManager.ts
+  s_779d9c981bec79::t_1747c62ecec787 151,174-176
+  s_779d9c981bec79::t_f89ccf137f0a0b 174
+  s_779d9c981bec79::t_7e2f8de3e1e141 9-10
+packages/game-core/src/types.ts
+  s_779d9c981bec79::t_98184246ac86ab 99-100,171
+server/src/index.ts
+  s_779d9c981bec79::t_bbfc8c97acea41 44
+  s_779d9c981bec79::t_4aa9fa3e31e79e 6
+  s_779d9c981bec79::t_babcfebee6d6a8 188
+  s_779d9c981bec79::t_a7bf4b70d16ba0 48
+  s_779d9c981bec79::t_2463eaa94fa50d 73
+package-lock.json
+  s_779d9c981bec79::t_1236aac78c8321 2139,2143-2144
+  s_779d9c981bec79::t_8b7753cc27a7eb 2167-2169,2172,2175-2180,2182-2196,2198-2208,2210-2214,2216-2223,2225-2235,2240-2241,2245-2246,2263-2264,2269-2270,2288-2289,2290,2292,2295-2296,2301-2302,2407,2410-2411,3476-3477,3484,3491-3492,3524-3525,3530,3540,3542-3543,3546-3547,3549-3550,3552-3553,3563-3564,3569,3570,3582-3583,3585-3586,3591,3592,3594-3595,3609,3610,6556,6600,7005,7016,7051-7052,7054-7057,7062,9948-9950,11527-11528,11566,12673-12680,12700,12701,12871,12875
+__tests__/screens/MultiplayerGameScreen.test.tsx
+  s_b7a473c447dd8c::t_301ac22059b376 168-169,175,176-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "f739db0bc69b6dfc828f8417d00bcfd9a8cf6902",
+  "prompts": {},
+  "sessions": {
+    "s_755438b5ce44c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5c6eabb1-c6a5-480d-b76e-169d127a0389",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    },
+    "s_779d9c981bec79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67d45d4f-0ec4-4966-a4e4-a8cd8bb61f9c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    },
+    "s_b7a473c447dd8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86f97411-bd1a-49ae-96df-765fec69fef7",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
