@@ -24,6 +24,8 @@ import type {
 } from '@hello-world/game-core';
 import { makeProtocolError } from '@hello-world/game-core';
 import type { TypedSocket } from '../types';
+import { logger } from '../logger';
+import { recordMetric } from '../metricsHooks';
 
 /**
  * Shape of the acknowledgement callback for room events. Success returns a
@@ -150,7 +152,10 @@ export function guard<T>(
       return;
     }
     // Full detail stays server-side only.
-    console.error(`[Server] Unexpected error handling ${event}:`, err);
+    logger.error('unexpected handler error', {
+      event: `handler_error:${event}`,
+      error: err instanceof Error ? err.message : String(err),
+    });
     fail(makeProtocolError('INTERNAL_ERROR', 'An unexpected error occurred.'));
   };
 
@@ -160,9 +165,11 @@ export function guard<T>(
       const result = schema.safeParse(payload);
       if (!result.success) {
         // Log field names only — never the rejected payload contents.
-        console.warn(
-          `[Server] Rejected ${event}: invalid payload (fields: ${summarizeIssues(result.error)})`,
-        );
+        recordMetric('validation_failed', { event });
+        logger.warn('rejected invalid payload', {
+          event: `invalid_payload:${event}`,
+          fields: summarizeIssues(result.error),
+        });
         fail(makeProtocolError('INVALID_PAYLOAD', `Invalid ${event} request.`));
         return;
       }

@@ -36,6 +36,8 @@ const envSchema = z.object({
   RELEASE_VERSION: z.string().optional(),
   /** Commit SHA of the running build, surfaced in health output (MFP-09). */
   COMMIT_SHA: z.string().optional(),
+  /** Bearer token protecting the internal /metrics endpoint (MFP-10). */
+  METRICS_TOKEN: z.string().optional(),
 });
 
 export type NodeEnv = 'development' | 'test' | 'staging' | 'production';
@@ -60,6 +62,7 @@ export interface ServerConfig {
   errorReportingDsn: string | undefined;
   releaseVersion: string | undefined;
   commitSha: string | undefined;
+  metricsToken: string | undefined;
 }
 
 /** Raised when configuration is missing or invalid. */
@@ -117,6 +120,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     errorReportingDsn: c.ERROR_REPORTING_DSN,
     releaseVersion: c.RELEASE_VERSION,
     commitSha: c.COMMIT_SHA,
+    metricsToken: c.METRICS_TOKEN,
   };
 }
 

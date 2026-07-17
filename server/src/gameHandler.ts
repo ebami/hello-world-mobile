@@ -19,6 +19,8 @@ import {
   declareLastCard,
 } from '@hello-world/game-core';
 import type { TypedServer, TypedSocket } from './types';
+import { logger } from './logger';
+import { recordMetric } from './metricsHooks';
 
 // ========== State Conversion ==========
 
@@ -94,6 +96,8 @@ export function forfeitAndComplete(
   const message = winner
     ? `${winner.displayName} wins by forfeit!`
     : 'Game over.';
+  recordMetric('forfeit');
+  recordMetric('game_completed', { reason: 'forfeit' });
   announceGameOver(io, roomId, result.winnerId, message);
 }
 
@@ -391,6 +395,7 @@ export function handleGameAction(
     const winnerId = result.winner !== null ? seatOrder[result.winner] ?? null : null;
     const winner = winnerId ? roomManager.getPlayer(roomId, winnerId) : null;
     const message = winner ? `${winner.displayName} wins!` : "It's a draw!";
+    recordMetric('game_completed', { reason: winnerId ? 'win' : 'draw' });
     announceGameOver(io, roomId, winnerId, message);
   }
 }
@@ -431,7 +436,7 @@ export function startGame(io: TypedServer, socket: TypedSocket, roomId: string):
     return;
   }
 
-  console.log(`[GameHandler] Starting game in room ${roomId}`);
+  logger.info('game started', { event: 'game_started', roomId });
 
   // Send game_start to each player with their hand via the now-frozen seat map.
   const seatOrder = roomManager.getSeatOrder(roomId);

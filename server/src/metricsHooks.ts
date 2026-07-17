@@ -16,7 +16,14 @@ export type MetricName =
   | 'rate_limited'
   | 'origin_rejected'
   | 'payload_rejected'
-  | 'capacity_rejected';
+  | 'capacity_rejected'
+  // MFP-10: gameplay / lifecycle telemetry.
+  | 'validation_failed'
+  | 'reconnect_success'
+  | 'reconnect_failure'
+  | 'forfeit'
+  | 'game_completed'
+  | 'uncaught_exception';
 
 /** Listener notified on every metric event (MFP-10 wiring point). */
 export type MetricListener = (name: MetricName, labels?: Record<string, string>) => void;

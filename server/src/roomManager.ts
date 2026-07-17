@@ -6,6 +6,7 @@
 // currently speaks for each player and is the authoritative source for
 // stale-socket detection during authorization.
 import type { RoomInfo, PlayerSummary, GameState, RoomPhase } from './types';
+import { logger } from './logger';
 
 interface RoomData {
   info: RoomInfo;
@@ -106,7 +107,7 @@ class RoomManager {
     };
 
     this.rooms.set(roomId, roomData);
-    console.log(`[${new Date().toISOString()}] [RoomManager] Created room ${roomId} by ${hostName}`);
+    logger.info('room created', { event: 'room_created', roomId, playerId: hostId });
 
     return roomInfo;
   }
@@ -144,7 +145,7 @@ class RoomManager {
     room.socketIds.set(playerId, socketId);
     room.lastActivityAt = Date.now();
 
-    console.log(`[${new Date().toISOString()}] [RoomManager] ${playerName} joined room ${roomId}`);
+    logger.info('player joined', { event: 'player_joined', roomId, playerId });
 
     return room.info;
   }
@@ -177,17 +178,17 @@ class RoomManager {
     // If room is empty, delete it
     if (room.info.players.length === 0) {
       this.rooms.delete(roomId);
-      console.log(`[${new Date().toISOString()}] [RoomManager] Room ${roomId} deleted (empty)`);
+      logger.info('room deleted', { event: 'room_deleted', roomId, reason: 'empty' });
       return null;
     }
 
     // If host left, assign the next player as the new host (by opaque id).
     if (room.info.hostId === playerId) {
       room.info.hostId = room.info.players[0].playerId;
-      console.log(`[${new Date().toISOString()}] [RoomManager] New host for room ${roomId}: ${room.info.hostId}`);
+      logger.info('host reassigned', { event: 'host_reassigned', roomId, playerId: room.info.hostId });
     }
 
-    console.log(`[${new Date().toISOString()}] [RoomManager] Player ${playerId} left room ${roomId}`);
+    logger.info('player left', { event: 'player_left', roomId, playerId });
 
     return room.info;
   }
@@ -409,6 +410,15 @@ class RoomManager {
     return this.rooms.size;
   }
 
+  /** Number of rooms with a game in progress (ACTIVE phase) — for metrics (MFP-10). */
+  activeGameCount(): number {
+    let count = 0;
+    for (const room of this.rooms.values()) {
+      if (room.phase === 'ACTIVE') count += 1;
+    }
+    return count;
+  }
+
   /**
    * Remove rooms that have outlived their TTL (MFP-06). Empty rooms, idle
    * lobbies, and finished (COMPLETED/ABANDONED) rooms are eligible; ACTIVE rooms
@@ -438,7 +448,7 @@ class RoomManager {
 
   deleteRoom(roomId: string): void {
     this.rooms.delete(roomId);
-    console.log(`[RoomManager] Room ${roomId} deleted`);
+    logger.info('room deleted', { event: 'room_deleted', roomId });
   }
 }
 

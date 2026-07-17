@@ -5,6 +5,7 @@ import {
   View,
   TouchableOpacity,
 } from 'react-native';
+import { reportClientError } from '../utils/clientErrorReporter';
 
 interface Props {
   children: ReactNode;
@@ -28,6 +29,8 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Game Error:', error, errorInfo);
+    // Report to the crash provider when configured (no cards/tokens/state).
+    reportClientError(error, { source: 'ErrorBoundary' });
   }
 
   handleReset = () => {

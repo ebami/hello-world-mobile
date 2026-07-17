@@ -5,18 +5,34 @@ import { createSocketServer } from './socketServer';
 import { loadConfig, type ServerConfig } from './config';
 import { roomManager } from './roomManager';
 import { beginDrain } from './serverLifecycle';
+import { logger } from './logger';
+import { recordMetric } from './metricsHooks';
+import { startProcessSampling } from './metrics';
+import { initErrorReporter, reportError } from './errorReporter';
+
+// Report crashes/errors to the configured provider (no-op without a DSN) and
+// begin sampling event-loop lag for the metrics snapshot (MFP-10).
+initErrorReporter();
+startProcessSampling();
 
 // Defense-in-depth crash containment. The per-event `guard` wrapper already
-// contains all client-triggered errors; this last-resort net logs anything
-// that still escapes (e.g. a future async handler) rather than letting a
-// single stray error terminate the process. Graceful shutdown/draining is
-// deferred to MFP-09. Installed here (not in the factory) so test-constructed
-// servers don't accumulate duplicate process listeners.
+// contains all client-triggered errors; these last-resort handlers report and
+// log anything that still escapes. Installed here (not in the factory) so
+// test-constructed servers don't accumulate duplicate process listeners.
 process.on('unhandledRejection', (reason) => {
-  console.error('[Server] Unhandled promise rejection:', reason);
+  recordMetric('uncaught_exception', { kind: 'unhandledRejection' });
+  reportError(reason, { kind: 'unhandledRejection' });
+  logger.error('unhandled promise rejection', {
+    event: 'unhandled_rejection',
+    reason: reason instanceof Error ? reason.message : String(reason),
+  });
 });
 process.on('uncaughtException', (error) => {
-  console.error('[Server] Uncaught exception:', error);
+  recordMetric('uncaught_exception', { kind: 'uncaughtException' });
+  reportError(error, { kind: 'uncaughtException' });
+  logger.error('uncaught exception', { event: 'uncaught_exception', error: error.message });
+  // Controlled termination after reporting: the process is in an unknown state.
+  setTimeout(() => process.exit(1), 100).unref();
 });
 
 // Validate configuration once at startup (MFP-07). Invalid or missing required
@@ -26,7 +42,10 @@ let config: ServerConfig;
 try {
   config = loadConfig();
 } catch (err) {
-  console.error(`[Server] ${(err as Error).message}`);
+  logger.error('invalid configuration', {
+    event: 'config_invalid',
+    error: (err as Error).message,
+  });
   process.exit(1);
 }
 
@@ -40,13 +59,13 @@ let shuttingDown = false;
 function shutdown(signal: string): void {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log(`[Server] ${signal} received — draining before shutdown`);
+  logger.info('shutdown initiated', { event: 'shutdown', signal });
   beginDrain();
   io.emit('server_shutdown', 'The server is restarting. You may briefly disconnect.');
 
   const drainMs = Math.max(1000, config.disconnectGraceSeconds * 1000);
   const forceExit = setTimeout(() => {
-    console.error('[Server] Drain timeout exceeded — forcing exit');
+    logger.error('drain timeout exceeded — forcing exit', { event: 'shutdown_forced' });
     process.exit(1);
   }, drainMs + 5000);
   forceExit.unref();
@@ -54,7 +73,7 @@ function shutdown(signal: string): void {
   setTimeout(() => {
     io.close(() => {
       httpServer.close(() => {
-        console.log('[Server] Closed cleanly');
+        logger.info('closed cleanly', { event: 'shutdown_complete' });
         process.exit(0);
       });
     });
@@ -65,9 +84,13 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 httpServer.listen(config.port, () => {
-  console.log(
-    `[Server] Listening on port ${config.port} (env: ${config.nodeEnv}, log: ${config.logLevel})`,
-  );
+  logger.info('server listening', {
+    event: 'listening',
+    port: config.port,
+    environment: config.nodeEnv,
+    logLevel: config.logLevel,
+    release: config.releaseVersion ?? null,
+  });
 });
 
 // Periodic room-TTL cleanup (MFP-06): remove idle lobbies, finished, and empty
@@ -83,7 +106,8 @@ const cleanupInterval = setInterval(() => {
     completedMs: ttlMs,
   });
   if (removed.length > 0) {
-    console.log(`[Server] Cleaned up ${removed.length} expired room(s)`);
+    removed.forEach(() => recordMetric('room_expired'));
+    logger.info('rooms cleaned', { event: 'rooms_cleaned', count: removed.length });
   }
 }, 60_000);
 cleanupInterval.unref();

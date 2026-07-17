@@ -27,7 +27,9 @@ import { armGraceTimer, cancelGraceTimer } from './graceTimers';
 import { loadConfig, type ServerConfig } from './config';
 import { rateLimiter, connectionTracker } from './rateLimiter';
 import { recordMetric } from './metricsHooks';
+import { registerGauge, snapshotMetrics } from './metrics';
 import { isDraining } from './serverLifecycle';
+import { logger } from './logger';
 import type { TypedServer, TypedSocket } from './types';
 import {
   createRoomSchema,
@@ -68,10 +70,6 @@ export interface SocketServer {
   io: TypedServer;
 }
 
-function timestamp(): string {
-  return new Date().toISOString();
-}
-
 /**
  * Assemble the {@link RoomSession} returned to a client on create/join: the
  * public room, the caller's opaque player id, and a freshly signed, room-scoped
@@ -90,7 +88,7 @@ function commandAllowed(socket: TypedSocket, config: ServerConfig): boolean {
 
 /** Register every client-to-server handler on a freshly connected socket. */
 function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerConfig): void {
-  console.log(`[${timestamp()}] [Server] Client connected: ${socket.id}`);
+  logger.debug('client connected', { event: 'client_connected', socketId: socket.id });
 
   socket.on('create_room', (...args: unknown[]) => {
     guard('create_room', createRoomSchema, args, socket, (options, ack) => {
@@ -135,7 +133,6 @@ function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerCo
 
       socket.join(room.roomId);
       // Never log the reconnect token — it is a signed credential.
-      console.log(`[${timestamp()}] [Server] Room created: ${room.roomId}`);
       recordMetric('room_created');
       ack?.(issueSession(playerId, room));
     });
@@ -176,7 +173,6 @@ function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerCo
       socket.data.roomId = room.roomId;
 
       socket.join(room.roomId);
-      console.log(`[${timestamp()}] [Server] Player joined room: ${room.roomId}`);
       ack?.(issueSession(playerId, room));
 
       socket.to(room.roomId).emit('room_updated', room);
@@ -190,6 +186,7 @@ function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerCo
       // token reveals nothing about the room's private state.
       const claims = verifySession(options.reconnectToken, options.roomId);
       if (!claims || claims.playerId !== options.playerId) {
+        recordMetric('reconnect_failure', { reason: 'invalid_token' });
         ack?.(null, makeProtocolError('SESSION_INVALID', 'Invalid or expired session.'));
         return;
       }
@@ -200,6 +197,7 @@ function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerCo
       // game — or an explicit leave that removed the player — is not resumable,
       // which is how an explicit leave "immediately invalidates" the session.
       if (!player || (phase !== 'LOBBY' && phase !== 'ACTIVE')) {
+        recordMetric('reconnect_failure', { reason: 'not_resumable' });
         ack?.(null, makeProtocolError('SESSION_INVALID', 'Session is no longer valid.'));
         return;
       }
@@ -228,7 +226,8 @@ function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerCo
         stateVersion: snapshot.stateVersion,
       };
       // Never log the rotated token.
-      console.log(`[${timestamp()}] [Server] Session resumed in room ${options.roomId}`);
+      recordMetric('reconnect_success');
+      logger.info('session resumed', { event: 'session_resumed', roomId: options.roomId, playerId: options.playerId });
       ack?.(result);
 
       // Let the other player observe the reconnection.
@@ -313,7 +312,7 @@ function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerCo
   });
 
   socket.on('disconnect', (reason) => {
-    console.log(`[${timestamp()}] [Server] Client disconnected: ${socket.id}, reason: ${reason}`);
+    logger.debug('client disconnected', { event: 'client_disconnected', socketId: socket.id, reason });
 
     // Free the connection-concurrency slot acquired at handshake (MFP-06).
     connectionTracker.release(socket.handshake.address);
@@ -395,6 +394,26 @@ export function createSocketServer(overrides: Partial<ServerConfig> = {}): Socke
     } else {
       res.json({ ...healthInfo(), status: 'ready' });
     }
+  });
+
+  // Live gauges for the metrics snapshot (MFP-10).
+  registerGauge('connected_sockets', () => connectionTracker.activeTotal);
+  registerGauge('active_rooms', () => roomManager.roomCount());
+  registerGauge('active_games', () => roomManager.activeGameCount());
+
+  // Protected internal metrics endpoint (MFP-10). Requires the configured
+  // token; when no token is set it is available in non-production only.
+  app.get('/metrics', (req, res) => {
+    if (config.metricsToken) {
+      if (req.headers['x-metrics-token'] !== config.metricsToken) {
+        res.status(401).json({ error: 'unauthorized' });
+        return;
+      }
+    } else if (config.isProduction) {
+      res.status(404).end();
+      return;
+    }
+    res.json(snapshotMetrics(config.releaseVersion));
   });
 
   const httpServer = createServer(app);
