@@ -1,0 +1,24 @@
+screens/GameScreen.tsx
+  s_b7a473c447dd8c::t_eaef9465d8ff92 22
+  s_b7a473c447dd8c::t_7795ef0048aecc 123-124,217,272-278,395-413
+__tests__/screens/LobbyScreen.test.tsx
+  s_b7a473c447dd8c::t_a05770b90faabc 120,129-131,137,141-142,145,184,194-196,199,209-211,217,221-222,225
+screens/LobbyScreen.tsx
+  s_b7a473c447dd8c::t_0e91c20c245e47 65-66,68,73,109,114,120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "119d5292ed93c27663ae6b3b4ed3f0bfe6d5d872",
+  "prompts": {},
+  "sessions": {
+    "s_b7a473c447dd8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86f97411-bd1a-49ae-96df-765fec69fef7",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}

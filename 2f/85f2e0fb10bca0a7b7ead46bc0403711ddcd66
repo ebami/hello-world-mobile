@@ -1,0 +1,56 @@
+server/src/index.ts
+  s_779d9c981bec79::t_4aa9fa3e31e79e 6
+  s_779d9c981bec79::t_babcfebee6d6a8 39-56
+server/src/roomManager.ts
+  s_779d9c981bec79::t_c55ab5df36aefd 396
+  s_779d9c981bec79::t_7e2f8de3e1e141 36-49
+  s_779d9c981bec79::t_d2e6dda3cac3e9 95,104-105
+  s_779d9c981bec79::t_a0c6abf874abcb 145
+  s_779d9c981bec79::t_27b2ddf859b32f 407-438
+  s_779d9c981bec79::t_30dd05fdd39a40 366
+  s_779d9c981bec79::t_e3858c8aa1d120 256
+server/src/rateLimiter.test.ts
+  s_779d9c981bec79::t_87ca3aefb15ca4 1-108
+server/src/abuseControls.test.ts
+  s_779d9c981bec79::t_6b2c8ad15e44f2 1-155
+server/src/rateLimiter.ts
+  s_779d9c981bec79::t_4380a4d9e6eca9 1-108
+server/src/metricsHooks.ts
+  s_779d9c981bec79::t_375437e9560e2b 1-59
+server/src/roomManager.test.ts
+  s_779d9c981bec79::t_009791fc7d3cab 427-488
+server/src/socketServer.ts
+  s_779d9c981bec79::t_a1cf06e29d3801 28-29
+  s_779d9c981bec79::t_c13b6c3ea3fbaa 27
+  s_779d9c981bec79::t_e92a54d6bc1916 47-49
+  s_779d9c981bec79::t_5ac25202043f97 50-63
+  s_779d9c981bec79::t_fe725e2a76c578 84-89,91,96-108,140,145-147,277,290,303
+  s_779d9c981bec79::t_55e36790700934 141-144
+  s_779d9c981bec79::t_ef3b5f242c692f 274-276
+  s_779d9c981bec79::t_ada40edea27fd5 287-289
+  s_779d9c981bec79::t_194cdf8e67b13b 300-302
+  s_779d9c981bec79::t_ba7636921e13c1 133,273,279,286,292,299,305,312-314,356-360,363-364,372-373,380-409,412
+server/src/reconnectResume.test.ts
+  s_779d9c981bec79::t_fead90ba0287b8 38
+  s_779d9c981bec79::t_248726fc147847 16
+packages/game-core/src/protocol.ts
+  s_779d9c981bec79::t_b4bf48c6e46f55 28-34
+server/src/socketValidation.test.ts
+  s_779d9c981bec79::t_b035ac668ea4f9 15,39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "2f85f2e0fb10bca0a7b7ead46bc0403711ddcd66",
+  "prompts": {},
+  "sessions": {
+    "s_779d9c981bec79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67d45d4f-0ec4-4966-a4e4-a8cd8bb61f9c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}

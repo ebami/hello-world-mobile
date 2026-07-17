@@ -1,0 +1,47 @@
+server/src/roomManager.ts
+  s_779d9c981bec79::t_028b94ac913ebf 33-36
+server/src/roomManager.test.ts
+  s_779d9c981bec79::t_4146ed0cca8f2b 46,57,59-69
+README.md
+  s_779d9c981bec79::t_16cd8c051382ed 8
+__tests__/integration/rulesContent.test.tsx
+  s_779d9c981bec79::t_52ce647208c406 31
+__tests__/screens/MultiplayerGameScreen.test.tsx
+  s_779d9c981bec79::t_2bbe46744295ba 100-114
+__tests__/screens/QuickStartScreen.test.tsx
+  s_779d9c981bec79::t_a8ce86fff12df4 57
+__tests__/screens/WaitingRoomScreen.test.tsx
+  s_779d9c981bec79::t_52e21c868db2c4 23,117-135
+packages/game-core/src/types.ts
+  s_779d9c981bec79::t_75ae04eb0fceb7 139-143
+rules.md
+  s_779d9c981bec79::t_95f9b3394fc494 5-6
+screens/LobbyScreen.tsx
+  s_779d9c981bec79::t_a7f4f0bcf51fba 80-81
+screens/WaitingRoomScreen.tsx
+  s_779d9c981bec79::t_60197437d005d4 125,241-245
+screens/rules/QuickStartScreen.tsx
+  s_779d9c981bec79::t_f04f9b727e03dd 44
+server/src/socketServer.ts
+  s_779d9c981bec79::t_1b9b636ab3a296 60-62
+server/src/socketValidation.test.ts
+  s_779d9c981bec79::t_35f31d645ee33c 313-340
+server/src/validation/schemas.ts
+  s_779d9c981bec79::t_392b5dd4e029d0 23-27,29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "a2b4e77652a74612b473a5123084a78db4d816a7",
+  "prompts": {},
+  "sessions": {
+    "s_779d9c981bec79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67d45d4f-0ec4-4966-a4e4-a8cd8bb61f9c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}

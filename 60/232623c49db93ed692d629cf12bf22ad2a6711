@@ -1,0 +1,51 @@
+server/src/gameHandler.test.ts
+  s_779d9c981bec79::t_bd1aea6bef8487 6
+  s_779d9c981bec79::t_f5d78f54d390b4 611-767
+server/src/roomManager.ts
+  s_779d9c981bec79::t_1d73e6bc9a732f 8,14-23
+  s_779d9c981bec79::t_6da64b62c6fffb 63,70-71
+  s_779d9c981bec79::t_1747c62ecec787 131-132,218-220,222-229,231-232,242-306,308-323
+  s_779d9c981bec79::t_3036a7422d74b3 86-87
+  s_779d9c981bec79::t_85b293872636c6 117-122,129-130
+  s_779d9c981bec79::t_30008d5b3b957d 133
+server/src/roomManager.test.ts
+  s_779d9c981bec79::t_730df53850076e 273-375
+server/src/socketServer.ts
+  s_779d9c981bec79::t_5dec3241ad8512 17
+  s_779d9c981bec79::t_cff3373d5e61b0 121,123-127,133-135,184-186,194-195,197-208
+server/src/gameHandler.ts
+  s_779d9c981bec79::t_80d80f0360b947 54-70,178,193,380
+  s_779d9c981bec79::t_1b16a162d48a7a 38,42-53
+  s_779d9c981bec79::t_5486432e6269ee 71-77
+  s_779d9c981bec79::t_42cb3d1b77fdfe 175-177
+  s_779d9c981bec79::t_7977dd6f7579d5 179
+  s_779d9c981bec79::t_8b35a12ba39c35 190-192
+  s_779d9c981bec79::t_64082b2754ca29 194
+  s_779d9c981bec79::t_39aceb1e083b33 377-379
+  s_779d9c981bec79::t_58431b66665d74 381
+  s_779d9c981bec79::t_d3afd2baf35396 173-174,186-189,326-332,334,338-340,342-346,348,368-371,374-376,387,389-393,396
+networking/types.ts
+  s_779d9c981bec79::t_5d3d79bc9f2cec 22
+packages/game-core/src/types.ts
+  s_779d9c981bec79::t_061bf9deb63526 94-95,107-117,128,130-134
+server/src/socketValidation.test.ts
+  s_779d9c981bec79::t_a5542de85780f2 341-372
+server/src/types.ts
+  s_779d9c981bec79::t_d76f12bec0eb45 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "60232623c49db93ed692d629cf12bf22ad2a6711",
+  "prompts": {},
+  "sessions": {
+    "s_779d9c981bec79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67d45d4f-0ec4-4966-a4e4-a8cd8bb61f9c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}

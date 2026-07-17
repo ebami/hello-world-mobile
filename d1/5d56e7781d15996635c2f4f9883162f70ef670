@@ -1,0 +1,98 @@
+server/src/sessionToken.ts
+  s_779d9c981bec79::t_59ffefdf438b13 1-176
+server/src/roomManager.ts
+  s_779d9c981bec79::t_4963ef38b80120 1-7,12,35,37-38,46,54,60,78-80,85-86,93-94,96,100,106,112,121-122,127-128,132,136,150-151,153-185,193
+server/src/socketValidation.test.ts
+  s_779d9c981bec79::t_91a313964f23c8 62-64
+  s_779d9c981bec79::t_f9fea1f8a3a5e8 75-76,90,92-97,106,117,149,162,189,203,247,251-252,261-310
+server/src/sessionToken.test.ts
+  s_779d9c981bec79::t_f474183549e6d7 1-107,130
+  s_779d9c981bec79::t_b462da640befff 108-129
+server/src/socketServer.ts
+  s_779d9c981bec79::t_d53d7fb3da79ba 19-20
+  s_779d9c981bec79::t_60f93292b8569d 27
+  s_779d9c981bec79::t_207d427f478aab 39-48,55-57,75,77,83-85,90,103,109,118,120-121,174,176,178,192,194
+server/src/identity.ts
+  s_779d9c981bec79::t_f2004771df2285 1-27
+server/src/roomManager.test.ts
+  s_779d9c981bec79::t_6fb1030224f214 3-6,45-46,49,51-52,59,63-67,75,79-80,84-85,88-90,94,99-100,103,108-109,125,129-130,132,137-160,165,167,170-171,175,179,184,189-190,195-196,199,207,211-212,221,226-263,266,280,309,311,340-341,357
+__tests__/stores/sessionStore.test.ts
+  s_779d9c981bec79::t_2d2304a0be0cbe 34-35,112,142,148
+  s_779d9c981bec79::t_877e02370a40f1 32-33,147
+  s_779d9c981bec79::t_3c44bacaf9b71a 109-111
+  s_779d9c981bec79::t_9779612b3d89f3 113
+  s_779d9c981bec79::t_471ef09ffe5882 139-141
+  s_779d9c981bec79::t_d7f6b4e1ab81ca 143-146
+  s_779d9c981bec79::t_98fff189438e93 149-150
+  s_779d9c981bec79::t_94196bbc0d35a2 69-70,77-78,88,103-108,138,167-168,177,180,196,200-202,215
+server/src/gameHandler.test.ts
+  s_779d9c981bec79::t_f43a08cf193338 6
+  s_779d9c981bec79::t_218f93824b85cf 340-342,359,461-610
+server/src/gameHandler.ts
+  s_779d9c981bec79::t_eaef8607173f13 49-59
+  s_779d9c981bec79::t_38fb771ed034c7 61
+  s_779d9c981bec79::t_6a695bac9ca1e3 62-67
+  s_779d9c981bec79::t_eed8d20115ba51 68-77,80,84,87
+  s_755438b5ce44c9::t_676c38883edca4 44
+  s_779d9c981bec79::t_22679e91cff29b 41
+  s_779d9c981bec79::t_282f3ec120b005 60
+  s_779d9c981bec79::t_0feb8af50edc4d 78-79
+  s_779d9c981bec79::t_a7ad626d8f4e50 81-83
+  s_779d9c981bec79::t_748412354ac446 85-86
+  s_779d9c981bec79::t_d84ec9ddde87d4 88-90
+  s_779d9c981bec79::t_b79b40639361d7 127-132,135-139,142-145,245,263,289-294,299-303,306-309,313
+__tests__/networking/socketTransport.test.ts
+  s_779d9c981bec79::t_1568fe1cc64ea4 196-202,205,207,212,219,238,242-248,251,253,258,262,265
+__tests__/screens/LobbyScreen.test.tsx
+  s_779d9c981bec79::t_4ce594d0e1f783 156-161,166
+__tests__/screens/MultiplayerGameScreen.test.tsx
+  s_779d9c981bec79::t_44e983c9359c7e 38-39
+__tests__/screens/WaitingRoomScreen.test.tsx
+  s_779d9c981bec79::t_6d9d64dd00aef0 18,20-21,23-24,39-40,111-113
+__tests__/test-utils.tsx
+  s_779d9c981bec79::t_3dec4b0a4fdf55 85,102-103
+networking/localTransport.ts
+  s_779d9c981bec79::t_0c6d7ef5a3be44 47
+networking/socketTransport.ts
+  s_779d9c981bec79::t_6876271d1a794b 15,147,154-155,158,164,173-175,179-180
+networking/types.ts
+  s_779d9c981bec79::t_874c662f4d7c4d 22,34,102,104-105,109,111
+packages/game-core/src/types.ts
+  s_779d9c981bec79::t_d57d30183eda08 68-72,74-75,98,109,119-136,219,223
+screens/LobbyScreen.tsx
+  s_779d9c981bec79::t_e30301a6f13b91 30-38,80,84-85,87-88,90,98,127,132-133,135,144
+screens/MultiplayerGameScreen.tsx
+  s_779d9c981bec79::t_7a5ddce3d7f363 223
+screens/WaitingRoomScreen.tsx
+  s_779d9c981bec79::t_5987437706060c 83
+server/src/types.ts
+  s_779d9c981bec79::t_0083bf6915b0b1 11
+server/src/validation/validatedHandler.ts
+  s_779d9c981bec79::t_49fa7fac533905 20,27-32
+stores/sessionStore.ts
+  s_779d9c981bec79::t_5178a1374bb91c 40,42,45-50,77,80-82,103,142-145,163-165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "d15d56e7781d15996635c2f4f9883162f70ef670",
+  "prompts": {},
+  "sessions": {
+    "s_755438b5ce44c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5c6eabb1-c6a5-480d-b76e-169d127a0389",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    },
+    "s_779d9c981bec79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67d45d4f-0ec4-4966-a4e4-a8cd8bb61f9c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}

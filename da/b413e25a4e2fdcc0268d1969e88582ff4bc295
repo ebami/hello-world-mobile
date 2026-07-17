@@ -1,0 +1,97 @@
+server/src/gameHandler.ts
+  s_779d9c981bec79::t_5b9ca66ee822df 40
+  s_779d9c981bec79::t_55060173e21559 9
+  s_779d9c981bec79::t_726a790d478b98 44-49
+  s_779d9c981bec79::t_efdbd3e5fa69bf 50-52
+  s_779d9c981bec79::t_e12b040e3f424a 53-63,184-185,219-236,360-361,364-368
+server/src/socketServer.ts
+  s_779d9c981bec79::t_97f31bd206cf76 19-22,25-26,32-33,35-42
+  s_779d9c981bec79::t_912b783e9785c9 17-18
+  s_779d9c981bec79::t_e9e92d339f6ded 132-184,191-194,226,232,235,241,244,255-261,269,284
+server/src/roomManager.ts
+  s_779d9c981bec79::t_b65ef983889277 247
+  s_779d9c981bec79::t_f89ccf137f0a0b 298-333
+  s_779d9c981bec79::t_99d509f6f9b9c7 24-35,38-39
+  s_779d9c981bec79::t_965a518460e29d 87-88
+  s_779d9c981bec79::t_20048b788e16fb 40
+__tests__/networking/socketTransport.test.ts
+  s_779d9c981bec79::t_83bc780cb06cab 30-37
+  s_779d9c981bec79::t_e222af02bf58ae 306,312-322,332-335,338,341-347,350,353-452
+networking/socketTransport.ts
+  s_779d9c981bec79::t_dc589a24e359a0 22-24
+  s_779d9c981bec79::t_350c26b4bad08c 25-32
+  s_779d9c981bec79::t_d013ecb747c63c 147-149,162-164,304
+  s_779d9c981bec79::t_2aee4434ec8580 142-143
+  s_755438b5ce44c9::t_de0370a5b9b4ba 138-140
+  s_779d9c981bec79::t_76adf847667b4d 16-17
+  s_779d9c981bec79::t_4960c771903b57 61-67,113-116,222,226,241,248,294,298,328-329
+  s_779d9c981bec79::t_dc2eb7041b94dd 223-225
+  s_779d9c981bec79::t_71979d6ae37f33 227-229,238-240
+  s_779d9c981bec79::t_d2c6e8f2506167 242-247
+  s_779d9c981bec79::t_e264ac3666da4f 249-251,291-293
+  s_779d9c981bec79::t_e8d10e932e7ba9 295-297
+  s_779d9c981bec79::t_bf9cc82a036bfb 299-303
+  s_779d9c981bec79::t_f1f9b951bee4ba 305-307
+  s_779d9c981bec79::t_70baee8612b162 327
+  s_779d9c981bec79::t_4589d1b2e325e0 192,215,230-237,252-290,308-324,342-350,358,362,365
+stores/secureTokenStore.ts
+  s_779d9c981bec79::t_dcc38237d0cac8 1-69
+server/src/graceTimers.test.ts
+  s_779d9c981bec79::t_823419ac010041 1-73
+server/src/reconnectResume.test.ts
+  s_779d9c981bec79::t_490a878c3a6124 1-240
+server/src/roomManager.test.ts
+  s_779d9c981bec79::t_778d7d24d94b3b 376-426
+screens/MultiplayerGameScreen.tsx
+  s_779d9c981bec79::t_32396c0ef5b876 15
+  s_779d9c981bec79::t_a0c753a0118f42 41-45,100-102,107-108,114,117,146,167,171,213-220,275,344-353
+stores/sessionStore.ts
+  s_779d9c981bec79::t_1e3efc78378f1a 15
+  s_779d9c981bec79::t_020d30fdbef75b 89-96,179-190
+__tests__/screens/WaitingRoomScreen.test.tsx
+  s_779d9c981bec79::t_39a5b52630cd34 41
+__tests__/stores/secureTokenStore.test.ts
+  s_779d9c981bec79::t_e40d3a0b5a67c8 1-47
+__tests__/stores/sessionStore.test.ts
+  s_779d9c981bec79::t_6af8f7216a5b8d 190-228
+networking/types.ts
+  s_779d9c981bec79::t_480b79c5c183ed 18-19,26-27,40,66-72,77-80
+packages/game-core/src/protocol.ts
+  s_779d9c981bec79::t_0b609f025e7cb3 25-28
+packages/game-core/src/types.ts
+  s_779d9c981bec79::t_98184246ac86ab 96-101,161-192,230-244,255-256,302-306,310-311
+screens/WaitingRoomScreen.tsx
+  s_779d9c981bec79::t_54a073b3c423f1 31-40,57-59,61,106
+server/src/gameHandler.test.ts
+  s_779d9c981bec79::t_41fd0c87ef0413 768-859
+server/src/types.ts
+  s_779d9c981bec79::t_b4a0d4aac8312f 17-18,22-23
+server/src/validation/schemas.ts
+  s_779d9c981bec79::t_0b6dbc93665a2f 37-42,75-88,93-94,103-112,120-121
+server/src/validation/validatedHandler.ts
+  s_779d9c981bec79::t_5ee401f917c8b8 21,30,33-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "dab413e25a4e2fdcc0268d1969e88582ff4bc295",
+  "prompts": {},
+  "sessions": {
+    "s_755438b5ce44c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5c6eabb1-c6a5-480d-b76e-169d127a0389",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    },
+    "s_779d9c981bec79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67d45d4f-0ec4-4966-a4e4-a8cd8bb61f9c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
