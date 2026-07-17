@@ -1,0 +1,19 @@
+components/Card.tsx
+  s_b7a473c447dd8c::t_1b7600296d9c63 134-137,139-158,160-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "de11a24faba1823c0fa76d5ddee369fcc8dc3a5f",
+  "prompts": {},
+  "sessions": {
+    "s_b7a473c447dd8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86f97411-bd1a-49ae-96df-765fec69fef7",
+        "model": "unknown"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
