@@ -54,6 +54,7 @@ describe('SocketTransport', () => {
       onRoomUpdated: jest.fn(),
       onGameStart: jest.fn(),
       onGameOver: jest.fn(),
+      onPlayerLeft: jest.fn(),
       onPlayerAction: jest.fn(),
       onError: jest.fn(),
     };
@@ -168,9 +169,17 @@ describe('SocketTransport', () => {
     it('should handle game_over event', () => {
       const handler = getEventHandler('game_over');
 
-      handler?.('player1', 'Player 1 wins!', 'win');
+      handler?.('player1', 'Player 1 wins!', 'win', []);
 
-      expect(callbacks.onGameOver).toHaveBeenCalledWith('player1', 'Player 1 wins!', 'win');
+      expect(callbacks.onGameOver).toHaveBeenCalledWith('player1', 'Player 1 wins!', 'win', []);
+    });
+
+    it('should handle player_left event', () => {
+      const handler = getEventHandler('player_left');
+
+      handler?.('player2', 'Bob');
+
+      expect(callbacks.onPlayerLeft).toHaveBeenCalledWith('player2', 'Bob');
     });
 
     it('should handle error event', () => {
