@@ -187,7 +187,7 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
   it('rejects invalid maxPlayers (negative, fractional, NaN, excessive)', async () => {
     const client = await connect();
 
-    for (const maxPlayers of [-1, 2.5, NaN, 999]) {
+    for (const maxPlayers of [1, -1, 2.5, NaN, 5, 999]) {
       const { session: room, error } = await emitWithAck(client, 'create_room', {
         playerName: 'Alice',
         maxPlayers,
@@ -329,11 +329,34 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
     expect(rejected.error?.code).toBe('ROOM_FULL');
   });
 
-  it('rejects a client-supplied maxPlayers greater than two (MFP-11)', async () => {
+  it('accepts a host-chosen 4-player room and rejects a fifth join with ROOM_FULL', async () => {
+    const host = await connect();
+    const { session, error } = await emitWithAck(host, 'create_room', {
+      playerName: 'Alice',
+      maxPlayers: 4,
+    });
+    expect(error).toBeUndefined();
+    const created = session as { room: { roomId: string; maxPlayers: number } };
+    expect(created.room.maxPlayers).toBe(4);
+    const roomId = created.room.roomId;
+
+    for (const name of ['Bob', 'Carol', 'Dave']) {
+      const guest = await connect();
+      const res = await emitWithAck(guest, 'join_room', { roomId, playerName: name });
+      expect(res.error).toBeUndefined();
+    }
+
+    const fifth = await connect();
+    const rejected = await emitWithAck(fifth, 'join_room', { roomId, playerName: 'Erin' });
+    expect(rejected.session).toBeNull();
+    expect(rejected.error?.code).toBe('ROOM_FULL');
+  });
+
+  it('rejects a client-supplied maxPlayers outside the 2-4 range', async () => {
     const client = await connect();
     const { session, error } = await emitWithAck(client, 'create_room', {
       playerName: 'Alice',
-      maxPlayers: 4,
+      maxPlayers: 5,
     });
     expect(session).toBeNull();
     expect(error?.code).toBe('INVALID_PAYLOAD');

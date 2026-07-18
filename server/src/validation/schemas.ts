@@ -21,12 +21,13 @@ export const MAX_PLAYER_NAME = 24;
 /** Room codes are exactly 6 uppercase-alphanumeric characters. */
 export const ROOM_CODE_REGEX = /^[A-Z0-9]{6}$/;
 /**
- * Server-approved bounds for the room size a client may request. The production
- * online MVP is two-player (MFP-11): a client may only ever request 2, and the
- * server ignores the value regardless and caps rooms at two.
+ * Server-approved bounds for the room size a client may request. Online play
+ * supports 2-4 players; the host picks a target within these bounds at room
+ * creation and the strict schema rejects anything outside the range. The cap is
+ * still server-owned — a client can never raise a room past MAX_MAX_PLAYERS.
  */
 export const MIN_MAX_PLAYERS = 2;
-export const MAX_MAX_PLAYERS = 2;
+export const MAX_MAX_PLAYERS = 4;
 /**
  * Upper bound on cards submitted in a single `play_cards` command. A legal
  * meld can never approach a full hand; this only guards against absurd arrays.

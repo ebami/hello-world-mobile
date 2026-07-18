@@ -606,6 +606,39 @@ describe('GameHandler - command authorization (MFP-03)', () => {
       expect(errors(emitted)).toContain('Only host can start game');
       expect(roomManager.getGameState(roomId)).toBeNull();
     });
+
+    it('starts a 3-player room below its 4-player target (AE6)', () => {
+      const room = roomManager.createRoom('h', 'Alice', 's1', 4);
+      const roomId = room.roomId;
+      roomManager.joinRoom(roomId, 'p2', 'Bob', 's2');
+      roomManager.joinRoom(roomId, 'p3', 'Carol', 's3');
+
+      const { socket, emitted } = makeSocket('s1', {
+        playerId: 'h',
+        playerName: 'Alice',
+        roomId,
+      });
+      startGame(io, socket, roomId);
+
+      expect(errors(emitted)).toEqual([]);
+      expect(roomManager.getGameState(roomId)).not.toBeNull();
+      expect(roomManager.getSeatOrder(roomId)).toHaveLength(3);
+    });
+
+    it('rejects starting with fewer than two connected players', () => {
+      const room = roomManager.createRoom('h', 'Alice', 's1', 4);
+      const roomId = room.roomId;
+
+      const { socket, emitted } = makeSocket('s1', {
+        playerId: 'h',
+        playerName: 'Alice',
+        roomId,
+      });
+      startGame(io, socket, roomId);
+
+      expect(errors(emitted)).toContain('Need at least 2 connected players to start');
+      expect(roomManager.getGameState(roomId)).toBeNull();
+    });
   });
 });
 

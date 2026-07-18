@@ -67,6 +67,20 @@ describe('RoomManager', () => {
       expect(roomManager.getRoom(room.roomId)!.players).toHaveLength(2);
     });
 
+    it('honors a host-chosen 3-4 player cap and rejects a join past it', () => {
+      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1', 4);
+      expect(room.maxPlayers).toBe(4);
+      roomManager.joinRoom(room.roomId, 'id-bob', 'Bob', 'socket-2');
+      roomManager.joinRoom(room.roomId, 'id-carol', 'Carol', 'socket-3');
+      roomManager.joinRoom(room.roomId, 'id-dave', 'Dave', 'socket-4');
+      expect(roomManager.getRoom(room.roomId)!.players).toHaveLength(4);
+
+      expect(() => {
+        roomManager.joinRoom(room.roomId, 'id-erin', 'Erin', 'socket-5');
+      }).toThrow('Room is full');
+      expect(roomManager.getRoom(room.roomId)!.players).toHaveLength(4);
+    });
+
     it('should store socket ID keyed by the host player id', () => {
       const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
       expect(roomManager.getSocketId(room.roomId, 'id-alice')).toBe('socket-1');

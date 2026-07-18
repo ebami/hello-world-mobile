@@ -425,10 +425,11 @@ export function startGame(io: TypedServer, socket: TypedSocket, roomId: string):
     return;
   }
 
-  // Exactly two eligible (connected) players are required for the MVP.
+  // At least two connected players are required to start; the upper bound is
+  // already enforced at join time by the room's maxPlayers cap.
   const eligible = room.players.filter(p => p.connected).length;
-  if (eligible !== 2) {
-    socket.emit('error', 'Need exactly 2 connected players to start');
+  if (eligible < 2) {
+    socket.emit('error', 'Need at least 2 connected players to start');
     return;
   }
 

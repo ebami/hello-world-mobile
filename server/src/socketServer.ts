@@ -37,6 +37,7 @@ import {
   playCardsCommandSchema,
   optionalCommandMetaSchema,
   resumeSessionSchema,
+  MAX_MAX_PLAYERS,
 } from './validation/schemas';
 import {
   makeProtocolError,
@@ -115,13 +116,15 @@ function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerCo
       const playerId = newPlayerId();
       let room;
       try {
-        // Server-authoritative room size (MFP-11): the client-requested
-        // `maxPlayers` is never trusted; rooms are capped at two players by the
-        // RoomManager default. The strict schema also rejects any value > 2.
+        // Server-authoritative room size: the client-requested `maxPlayers` is
+        // validated by the strict schema (2-4) before it reaches here, so any
+        // value outside the range is already rejected. When omitted, RoomManager
+        // defaults to two.
         room = roomManager.createRoom(
           playerId,
           options.playerName,
           socket.id,
+          options.maxPlayers,
         );
       } catch (err) {
         throw translateRoomError(err);
@@ -418,7 +421,7 @@ export function createSocketServer(overrides: Partial<ServerConfig> = {}): Socke
 
   const httpServer = createServer(app);
 
-  const maxTotalConnections = config.maxRooms * 2; // two players per room
+  const maxTotalConnections = config.maxRooms * MAX_MAX_PLAYERS; // up to MAX_MAX_PLAYERS per room
 
   const io: TypedServer = new Server(httpServer, {
     cors: {
