@@ -5,7 +5,7 @@
 // presentation only; the per-room `socketIds` map records which socket
 // currently speaks for each player and is the authoritative source for
 // stale-socket detection during authorization.
-import type { RoomInfo, PlayerSummary, GameState, RoomPhase } from './types';
+import type { RoomInfo, PlayerSummary, GameState, RoomPhase, EndgameMode } from './types';
 import { logger } from './logger';
 import { RoomFullError, GameAlreadyStartedError, NameTakenError } from './roomErrors';
 
@@ -71,10 +71,17 @@ class RoomManager {
     return code;
   }
 
-  // The production online MVP is two-player (MFP-11). game-core still supports
-  // more players, but rooms default to a two-player cap and the server never
-  // trusts a larger client-requested size.
-  createRoom(hostId: string, hostName: string, socketId: string, maxPlayers: number = 2): RoomInfo {
+  // Online play supports a host-chosen 2-4 player cap. game-core is player-count
+  // generic; the server owns the cap and never trusts a larger client-requested
+  // size (the strict schema rejects anything outside 2-4). `endgameMode` is only
+  // meaningful for 3-4 players and defaults to `first_out`.
+  createRoom(
+    hostId: string,
+    hostName: string,
+    socketId: string,
+    maxPlayers: number = 2,
+    endgameMode: EndgameMode = 'first_out',
+  ): RoomInfo {
     const roomId = this.generateRoomCode();
 
     const hostPlayer: PlayerSummary = {
@@ -90,6 +97,7 @@ class RoomManager {
       hostId,
       players: [hostPlayer],
       maxPlayers,
+      endgameMode,
       isStarted: false,
       phase: 'LOBBY',
     };

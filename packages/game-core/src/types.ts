@@ -131,6 +131,11 @@ export interface RoomInfo {
   players: PlayerSummary[];
   /** Maximum number of players allowed */
   maxPlayers: number;
+  /**
+   * Host-chosen endgame mode. Only meaningful for 3-4 player rooms; omitted or
+   * `first_out` for two players. Set by the server.
+   */
+  endgameMode?: EndgameMode;
   /** Whether the game has started (derived from {@link phase} for compatibility). */
   isStarted: boolean;
   /**
@@ -193,11 +198,16 @@ export interface ResumeResult {
 /** Options for creating a new game room. */
 export interface CreateRoomOptions {
   /**
-   * Requested maximum players. The production online MVP is two-player
-   * (MFP-11): the server caps every room at two and ignores any larger value,
-   * so this is effectively advisory and may be omitted.
+   * Requested maximum players (2-4). The server validates and caps this; when
+   * omitted it defaults to two. A client can never raise a room past the
+   * server-owned maximum.
    */
   maxPlayers?: number;
+  /**
+   * Host-chosen endgame mode. Only meaningful for 3-4 player rooms; omitted for
+   * two players (where the modes are identical). Defaults to `first_out`.
+   */
+  endgameMode?: EndgameMode;
   /** Display name for the creating player */
   playerName: string;
 }
@@ -274,14 +284,49 @@ export type GameAction =
   | DrawCardAction
   | DeclareLastCardAction;
 
+// ========== Endgame / Standings ==========
+
+/**
+ * How a multi-player game decides when it ends and how it ranks players.
+ * Host-chosen at room creation for 3-4 player rooms; identical in effect at two
+ * players, so 2-player rooms always use `first_out`.
+ *  - `first_out`: the first player to empty their hand wins and the game ends.
+ *  - `ranking`: play continues until one player is left holding cards; a full
+ *    finishing order is produced (see {@link Standing}).
+ */
+export type EndgameMode = 'ranking' | 'first_out';
+
+/**
+ * Per-seat lifecycle within an active game. Turn advancement skips any seat that
+ * is not `active`.
+ *  - `active`: still playing.
+ *  - `finished`: emptied their hand (Ranking mode) and stopped playing.
+ *  - `eliminated`: removed mid-game (grace expiry or explicit quit).
+ */
+export type SeatStatus = 'active' | 'finished' | 'eliminated';
+
+/** One entry in a final finishing order, best (place 1) to worst. */
+export interface Standing {
+  /** Opaque id of the player at this place. */
+  playerId: string;
+  /** 1-based placement; 1 is best. */
+  place: number;
+  /** How the player reached this placement. */
+  outcome: 'finished' | 'survivor' | 'eliminated';
+}
+
 // ========== Socket Event Types ==========
 
 /**
  * How a game ended. Sent explicitly with `game_over` so clients never have to
- * parse the human-readable message to tell a natural win from a forfeit
- * (opponent left) — see residual finding R1 on message-string coupling.
+ * parse the human-readable message to tell outcomes apart — see residual
+ * finding R1 on message-string coupling.
+ *  - `win` / `draw` / `forfeit`: two-player outcomes (natural win, stalemate,
+ *    opponent left).
+ *  - `first_out`: First-out mode — the first player to empty their hand won.
+ *  - `last_standing`: Ranking mode — play reached a single remaining player.
  */
-export type GameOverReason = 'win' | 'draw' | 'forfeit';
+export type GameOverReason = 'win' | 'draw' | 'forfeit' | 'first_out' | 'last_standing';
 
 /** Socket.IO server-to-client event definitions. */
 export interface ServerToClientEvents {

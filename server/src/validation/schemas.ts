@@ -62,6 +62,7 @@ export const createRoomSchema = z
       .min(MIN_MAX_PLAYERS)
       .max(MAX_MAX_PLAYERS)
       .optional(),
+    endgameMode: z.enum(['ranking', 'first_out']).optional(),
   })
   .strict();
 

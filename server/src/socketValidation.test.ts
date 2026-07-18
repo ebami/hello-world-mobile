@@ -363,6 +363,27 @@ describe('Socket.IO runtime validation (MFP-01)', () => {
     await expectServerResponsive(client);
   });
 
+  it('accepts a chosen endgameMode and reflects it; rejects unknown modes', async () => {
+    const host = await connect();
+    const ok = await emitWithAck(host, 'create_room', {
+      playerName: 'Alice',
+      maxPlayers: 3,
+      endgameMode: 'ranking',
+    });
+    expect(ok.error).toBeUndefined();
+    const created = ok.session as { room: { endgameMode?: string } };
+    expect(created.room.endgameMode).toBe('ranking');
+
+    const bad = await connect();
+    const rejected = await emitWithAck(bad, 'create_room', {
+      playerName: 'Bob',
+      endgameMode: 'sudden_death',
+    });
+    expect(rejected.session).toBeNull();
+    expect(rejected.error?.code).toBe('INVALID_PAYLOAD');
+    await expectServerResponsive(bad);
+  });
+
   it('an active-game leave forfeits and the opponent gets a single game_over (MFP-05)', async () => {
     const host = await connect();
     const { session: hostSession } = await emitWithAck(host, 'create_room', validCreate);

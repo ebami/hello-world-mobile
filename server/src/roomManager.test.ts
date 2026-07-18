@@ -81,6 +81,15 @@ describe('RoomManager', () => {
       expect(roomManager.getRoom(room.roomId)!.players).toHaveLength(4);
     });
 
+    it('defaults endgameMode to first_out and persists a chosen ranking mode', () => {
+      const def = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
+      expect(def.endgameMode).toBe('first_out');
+
+      const ranked = roomManager.createRoom('id-bob', 'Bob', 'socket-2', 4, 'ranking');
+      expect(ranked.endgameMode).toBe('ranking');
+      expect(ranked.maxPlayers).toBe(4);
+    });
+
     it('should store socket ID keyed by the host player id', () => {
       const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
       expect(roomManager.getSocketId(room.roomId, 'id-alice')).toBe('socket-1');

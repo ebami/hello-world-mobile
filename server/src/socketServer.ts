@@ -125,6 +125,7 @@ function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerCo
           options.playerName,
           socket.id,
           options.maxPlayers,
+          options.endgameMode,
         );
       } catch (err) {
         throw translateRoomError(err);
