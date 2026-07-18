@@ -1,6 +1,6 @@
 // Core game mechanics for a shedding card game using a standard
 // 52-card deck with no Jokers.
-import type { Card, GameState, Rank, Suit } from "./types";
+import type { Card, EndgameMode, GameState, Rank, SeatStatus, Suit } from "./types";
 import { shuffleDeck } from "./deck";
 
 const rankOrder: Rank[] = [
@@ -159,6 +159,28 @@ function nextPlayerIndex(
   return (current + direction + total) % total;
 }
 
+/**
+ * Advance one step from `current` in `direction`, skipping any seat whose status
+ * is not `active` (finished or eliminated). With no `seatStatus` (legacy or
+ * 2-player states) this is a plain rotation. If no other active seat exists it
+ * returns the next raw index — callers detect the single-active case via the
+ * endgame check rather than looping forever here.
+ */
+export function nextActiveIndex(
+  current: number,
+  direction: number,
+  total: number,
+  seatStatus?: SeatStatus[],
+): number {
+  if (total <= 0) return current;
+  let idx = current;
+  for (let step = 0; step < total; step++) {
+    idx = nextPlayerIndex(idx, direction, total);
+    if (!seatStatus || seatStatus[idx] === "active") return idx;
+  }
+  return nextPlayerIndex(current, direction, total);
+}
+
 export function drawCards(
   deck: Card[],
   discardPile: Card[],
@@ -203,6 +225,10 @@ export function applyCardEffect(
   let direction = state.direction;
   let message = "";
   let currentPlayer = state.currentPlayer;
+  // Advance the turn skipping finished/eliminated seats. Reads the live
+  // `direction` (flipped by a King) and the seat statuses carried on state.
+  const advance = (from: number): number =>
+    nextActiveIndex(from, direction, players.length, state.seatStatus);
   const lastCardCalled = [...state.lastCardCalled];
   const hasPlayed = [...state.hasPlayed];
   hasPlayed[playerIndex] = true;
@@ -219,18 +245,14 @@ export function applyCardEffect(
   switch (last.rank) {
     case "2":
       drawPressure += drawCount;
-      currentPlayer = nextPlayerIndex(currentPlayer, direction, players.length);
+      currentPlayer = advance(currentPlayer);
       lastCardCalled[currentPlayer] = false;
       message = `Draw pressure increases to ${drawPressure}`;
       break;
     case "J":
       if (last.suit === "♠" || last.suit === "♣") {
         drawPressure += drawCount;
-        currentPlayer = nextPlayerIndex(
-          currentPlayer,
-          direction,
-          players.length,
-        );
+        currentPlayer = advance(currentPlayer);
         lastCardCalled[currentPlayer] = false;
         message = `Draw pressure increases to ${drawPressure}`;
       } else {
@@ -239,32 +261,28 @@ export function applyCardEffect(
           state.drawPressure > 0
             ? "Red Jack cancels draw pressure"
             : "Red Jack cancels effects";
-        currentPlayer = nextPlayerIndex(
-          currentPlayer,
-          direction,
-          players.length,
-        );
+        currentPlayer = advance(currentPlayer);
       }
       break;
     case "8": {
-      const skipped = nextPlayerIndex(currentPlayer, direction, players.length);
+      const skipped = advance(currentPlayer);
       hasPlayed[skipped] = true;
       lastCardCalled[skipped] = false;
       message = `Player ${skipped + 1} is skipped`;
-      currentPlayer = nextPlayerIndex(skipped, direction, players.length);
+      currentPlayer = advance(skipped);
       break;
     }
     case "K":
       direction *= -1;
       message = "Order of play reversed";
-      currentPlayer = nextPlayerIndex(currentPlayer, direction, players.length);
+      currentPlayer = advance(currentPlayer);
       break;
     case "A":
       // The Ace keeps its own suit on the discard pile; the *active* suit is
       // the player's declared choice (falling back to the Ace's own suit only
       // when no declaration is supplied, e.g. legacy/local paths).
       message = `Suit changed to ${declaredSuit ?? last.suit}`;
-      currentPlayer = nextPlayerIndex(currentPlayer, direction, players.length);
+      currentPlayer = advance(currentPlayer);
       break;
     case "Q":
       if (cards.length > 1) {
@@ -276,16 +294,16 @@ export function applyCardEffect(
         message = `Player ${playerIndex + 1} draws ${drawResult.drawn.length} card${
           drawResult.drawn.length !== 1 ? "s" : ""
         } for not covering the Queen`;
-        currentPlayer = nextPlayerIndex(playerIndex, direction, players.length);
+        currentPlayer = advance(playerIndex);
       } else {
-        const next = nextPlayerIndex(currentPlayer, direction, players.length);
+        const next = advance(currentPlayer);
         lastCardCalled[next] = false;
         message = "Next player must cover the Queen";
         currentPlayer = next;
       }
       break;
     default:
-      currentPlayer = nextPlayerIndex(currentPlayer, direction, players.length);
+      currentPlayer = advance(currentPlayer);
       break;
   }
 
@@ -320,6 +338,11 @@ export function applyCardEffect(
     drawPressure,
     // Set the active suit after an Ace; clear it on any other play.
     activeSuit: last.rank === "A" ? (declaredSuit ?? last.suit) : null,
+    // Seat lifecycle carries through unchanged here; resolveEndgame marks any
+    // seat that just went out.
+    seatStatus: state.seatStatus,
+    finishedOrder: state.finishedOrder,
+    eliminatedOrder: state.eliminatedOrder,
   };
 }
 
@@ -349,10 +372,11 @@ export function applyPenalty(
   } for a mistake and ${exposureDrawn} card${
     exposureDrawn !== 1 ? "s" : ""
   } for exposure`;
-  const currentPlayer = nextPlayerIndex(
+  const currentPlayer = nextActiveIndex(
     player,
     state.direction,
     players.length,
+    state.seatStatus,
   );
   return {
     deck,
@@ -366,6 +390,9 @@ export function applyPenalty(
     drawPressure: state.drawPressure,
     // A penalty draw does not change the suit in force.
     activeSuit: state.activeSuit ?? null,
+    seatStatus: state.seatStatus,
+    finishedOrder: state.finishedOrder,
+    eliminatedOrder: state.eliminatedOrder,
   };
 }
 
@@ -403,6 +430,80 @@ export function isGameOver(state: GameState): GameOverResult {
   }
 
   return { over: winner !== -1, winner: winner !== -1 ? winner : null };
+}
+
+/** Result of a mode-aware endgame evaluation. */
+export interface EndgameResult {
+  /** State with seat statuses / finishing order updated for any seat that went out. */
+  state: GameState;
+  /** Whether the game has concluded. */
+  over: boolean;
+  /** Winning seat index, or null on a stalemate / draw. */
+  winnerSeat: number | null;
+  /** Final placement order (seat indices), best first. Empty until the game ends. */
+  standings: number[];
+}
+
+/**
+ * Mode-aware endgame resolution, called after each accepted command.
+ *
+ * Marks any active seat that has emptied its hand with a valid declaration as
+ * `finished` (appending it to `finishedOrder`). Then:
+ *  - `first_out`: the first finisher wins immediately; an empty hand without a
+ *    declaration is a stalemate (no winner).
+ *  - `ranking`: play continues until at most one active seat remains, then a full
+ *    standings order is produced — finishers (in the order they went out), the
+ *    lone survivor, then dropped seats in drop order (later drop ranks lower, per
+ *    KTD2).
+ */
+export function resolveEndgame(state: GameState, mode: EndgameMode): EndgameResult {
+  const total = state.players.length;
+  const seatStatus: SeatStatus[] = state.seatStatus
+    ? [...state.seatStatus]
+    : state.players.map(() => "active");
+  const finishedOrder = state.finishedOrder ? [...state.finishedOrder] : [];
+  const eliminatedOrder = state.eliminatedOrder ? [...state.eliminatedOrder] : [];
+
+  // Mark any active seat that just went out (empty hand + declared last card).
+  for (let i = 0; i < total; i++) {
+    if (
+      seatStatus[i] === "active" &&
+      state.players[i].length === 0 &&
+      state.lastCardCalled[i]
+    ) {
+      seatStatus[i] = "finished";
+      if (!finishedOrder.includes(i)) finishedOrder.push(i);
+    }
+  }
+
+  const newState: GameState = { ...state, seatStatus, finishedOrder, eliminatedOrder };
+
+  if (mode === "first_out") {
+    if (finishedOrder.length > 0) {
+      const winnerSeat = finishedOrder[0];
+      return { state: newState, over: true, winnerSeat, standings: [winnerSeat] };
+    }
+    // An empty hand without a valid declaration ends the game with no winner.
+    const stalemate = state.players.some(
+      (hand, i) => hand.length === 0 && !state.lastCardCalled[i],
+    );
+    return { state: newState, over: stalemate, winnerSeat: null, standings: [] };
+  }
+
+  // Ranking: continue until at most one active seat remains.
+  const activeSeats: number[] = [];
+  for (let i = 0; i < total; i++) {
+    if (seatStatus[i] === "active") activeSeats.push(i);
+  }
+  if (activeSeats.length > 1) {
+    return { state: newState, over: false, winnerSeat: null, standings: [] };
+  }
+  const survivor = activeSeats.length === 1 ? activeSeats[0] : null;
+  const standings = [...finishedOrder];
+  if (survivor !== null) standings.push(survivor);
+  standings.push(...eliminatedOrder);
+  const winnerSeat = finishedOrder.length > 0 ? finishedOrder[0] : survivor;
+  return { state: newState, over: true, winnerSeat, standings };
 }
 
 /**

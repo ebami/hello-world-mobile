@@ -6,6 +6,8 @@ export {
   applyCardEffect,
   applyPenalty,
   isGameOver,
+  resolveEndgame,
+  nextActiveIndex,
   declareLastCard,
 } from "@hello-world/game-core";
-export type { GameOverResult } from "@hello-world/game-core";
+export type { GameOverResult, EndgameResult } from "@hello-world/game-core";

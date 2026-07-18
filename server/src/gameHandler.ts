@@ -16,7 +16,8 @@ import {
   drawCards,
   getValidMoves,
   applyCardEffect,
-  isGameOver,
+  resolveEndgame,
+  nextActiveIndex,
   declareLastCard,
 } from '@hello-world/game-core';
 import type { TypedServer, TypedSocket } from './types';
@@ -176,6 +177,9 @@ export function initializeGame(roomId: string): GameState | null {
     drawPressure: 0,
     hasPlayed: room.players.map(() => false),
     activeSuit: null,
+    seatStatus: room.players.map(() => 'active' as const),
+    finishedOrder: [],
+    eliminatedOrder: [],
   };
 
   roomManager.setGameState(roomId, gameState);
@@ -331,7 +335,12 @@ export function handleGameAction(
       const lastCardCalled = [...gameState.lastCardCalled];
       lastCardCalled[playerIndex] = false;
       
-      const nextPlayer = (playerIndex + gameState.direction + players.length) % players.length;
+      const nextPlayer = nextActiveIndex(
+        playerIndex,
+        gameState.direction,
+        players.length,
+        gameState.seatStatus,
+      );
       
       gameState = {
         ...gameState,
@@ -363,6 +372,13 @@ export function handleGameAction(
     }
   }
   
+  // Mode-aware endgame resolution: mark any seat that just went out and, in
+  // Ranking mode, keep playing until one seat remains. Runs before the state is
+  // persisted so the updated seat statuses broadcast with this command.
+  const endgameMode = roomManager.getRoom(roomId)?.endgameMode ?? 'first_out';
+  const endgame = resolveEndgame(gameState, endgameMode);
+  gameState = endgame.state;
+
   // Save updated state and advance the monotonic version exactly once for this
   // accepted command; record the command id so a retry is deduplicated (MFP-04).
   roomManager.setGameState(roomId, gameState);
@@ -388,13 +404,14 @@ export function handleGameAction(
     }
   });
 
-  // Check for game over. Gate the announcement on the single ACTIVE → COMPLETED
-  // transition so `game_over` is emitted exactly once (MFP-05).
-  const result = isGameOver(gameState);
-  if (result.over && roomManager.completeGame(roomId)) {
+  // Gate the announcement on the single ACTIVE → COMPLETED transition so
+  // `game_over` is emitted exactly once (MFP-05). Standings enrichment lands in
+  // U7; for now the wire carries the winner and a win/draw reason.
+  if (endgame.over && roomManager.completeGame(roomId)) {
     // The wire `winnerId` is the opaque player id, resolved through the seat
     // mapping; the message shows the human-readable display name.
-    const winnerId = result.winner !== null ? seatOrder[result.winner] ?? null : null;
+    const winnerId =
+      endgame.winnerSeat !== null ? seatOrder[endgame.winnerSeat] ?? null : null;
     const winner = winnerId ? roomManager.getPlayer(roomId, winnerId) : null;
     const message = winner ? `${winner.displayName} wins!` : "It's a draw!";
     recordMetric('game_completed', { reason: winnerId ? 'win' : 'draw' });

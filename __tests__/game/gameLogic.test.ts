@@ -6,9 +6,11 @@ import {
   applyCardEffect,
   drawCards,
   isGameOver,
+  resolveEndgame,
+  nextActiveIndex,
   declareLastCard,
 } from '../../game';
-import type { Card, GameState } from '../../game/types';
+import type { Card, GameState, SeatStatus } from '../../game/types';
 
 describe('Active suit after an Ace (MFP-02)', () => {
   const base: Omit<GameState, 'players' | 'discardPile'> = {
@@ -269,3 +271,130 @@ function createTestState(): GameState {
     hasPlayed: [false, false],
   };
 }
+
+describe('nextActiveIndex — status-aware turn advancement (3-4p)', () => {
+  it('skips a finished/eliminated seat when advancing forward', () => {
+    const status: SeatStatus[] = ['active', 'finished', 'active', 'active'];
+    expect(nextActiveIndex(0, 1, 4, status)).toBe(2); // 0 -> skip 1 -> 2
+    expect(nextActiveIndex(2, 1, 4, status)).toBe(3);
+    expect(nextActiveIndex(3, 1, 4, status)).toBe(0); // wraps
+  });
+
+  it('skips inactive seats when direction is reversed', () => {
+    const status: SeatStatus[] = ['active', 'finished', 'active', 'active'];
+    expect(nextActiveIndex(2, -1, 4, status)).toBe(0); // 2 -> skip 1 -> 0
+  });
+
+  it('is a plain rotation when no seat status is given', () => {
+    expect(nextActiveIndex(0, 1, 4, undefined)).toBe(1);
+    expect(nextActiveIndex(3, 1, 4)).toBe(0);
+  });
+
+  it('returns the sole active seat (itself) when no other seat is active', () => {
+    const status: SeatStatus[] = ['eliminated', 'active', 'eliminated'];
+    expect(nextActiveIndex(1, 1, 3, status)).toBe(1);
+  });
+});
+
+describe('resolveEndgame — mode-aware endgame (3-4p)', () => {
+  const baseFour = (): GameState => ({
+    deck: generateDeck().slice(20),
+    discardPile: [{ id: '7♥', rank: '7', suit: '♥' }],
+    players: [
+      [{ id: '5♥', rank: '5', suit: '♥' }],
+      [{ id: '6♣', rank: '6', suit: '♣' }],
+      [{ id: '9♦', rank: '9', suit: '♦' }],
+      [{ id: 'K♠', rank: 'K', suit: '♠' }],
+    ],
+    currentPlayer: 0,
+    direction: 1,
+    message: '',
+    lastCardCalled: [false, false, false, false],
+    drawPressure: 0,
+    hasPlayed: [true, true, true, true],
+  });
+
+  it('First-out: the first player to empty their hand wins immediately (AE1)', () => {
+    const s = baseFour();
+    s.players[2] = [];
+    s.lastCardCalled[2] = true;
+    const r = resolveEndgame(s, 'first_out');
+    expect(r.over).toBe(true);
+    expect(r.winnerSeat).toBe(2);
+    expect(r.standings).toEqual([2]);
+  });
+
+  it('Ranking: play continues after a finish, ending with the full order (AE2, AE3)', () => {
+    let s = baseFour();
+
+    // Seat 2 goes out first.
+    s.players[2] = [];
+    s.lastCardCalled[2] = true;
+    let r = resolveEndgame(s, 'ranking');
+    expect(r.over).toBe(false);
+    expect(r.state.finishedOrder).toEqual([2]);
+    s = r.state;
+
+    // Seat 0 goes out second.
+    s.players[0] = [];
+    s.lastCardCalled[0] = true;
+    r = resolveEndgame(s, 'ranking');
+    expect(r.over).toBe(false);
+    expect(r.state.finishedOrder).toEqual([2, 0]);
+    s = r.state;
+
+    // Seat 1 goes out third — only seat 3 remains active, so the game ends.
+    s.players[1] = [];
+    s.lastCardCalled[1] = true;
+    r = resolveEndgame(s, 'ranking');
+    expect(r.over).toBe(true);
+    expect(r.winnerSeat).toBe(2); // first finisher wins
+    expect(r.standings).toEqual([2, 0, 1, 3]); // finishers, then the last holder
+  });
+
+  it('Ranking: not over while two or more seats remain active', () => {
+    const s = baseFour();
+    s.players[0] = [];
+    s.lastCardCalled[0] = true;
+    const r = resolveEndgame(s, 'ranking');
+    expect(r.over).toBe(false);
+    expect(r.state.seatStatus).toEqual(['finished', 'active', 'active', 'active']);
+  });
+
+  it('Ranking degenerate: a lone survivor wins when everyone else was eliminated', () => {
+    const s = baseFour();
+    s.seatStatus = ['eliminated', 'eliminated', 'eliminated', 'active'];
+    s.eliminatedOrder = [0, 1, 2];
+    const r = resolveEndgame(s, 'ranking');
+    expect(r.over).toBe(true);
+    expect(r.winnerSeat).toBe(3);
+    expect(r.standings).toEqual([3, 0, 1, 2]); // survivor, then drops in drop order
+  });
+});
+
+describe('applyCardEffect — skips non-active seats when advancing', () => {
+  it('advances past a finished seat on a plain play (3p)', () => {
+    const state: GameState = {
+      deck: generateDeck().slice(10),
+      discardPile: [{ id: '7♥', rank: '7', suit: '♥' }],
+      players: [
+        [{ id: '7♠', rank: '7', suit: '♠' }, { id: '2♣', rank: '2', suit: '♣' }],
+        [],
+        [{ id: '9♦', rank: '9', suit: '♦' }],
+      ],
+      currentPlayer: 0,
+      direction: 1,
+      message: '',
+      lastCardCalled: [false, true, false],
+      drawPressure: 0,
+      hasPlayed: [true, true, true],
+      seatStatus: ['active', 'finished', 'active'],
+      finishedOrder: [1],
+      eliminatedOrder: [],
+    };
+    // Seat 0 plays a plain 7♠; the turn skips finished seat 1 and lands on seat 2.
+    const next = applyCardEffect(state, [{ id: '7♠', rank: '7', suit: '♠' }]);
+    expect(next.currentPlayer).toBe(2);
+    expect(next.seatStatus).toEqual(['active', 'finished', 'active']);
+  });
+});

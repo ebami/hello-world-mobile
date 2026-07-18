@@ -60,6 +60,16 @@ export interface GameState {
    * otherwise. Valid-move calculation matches against this suit when present.
    */
   activeSuit?: Suit | null;
+  /**
+   * Per-seat lifecycle status (3-4 player games). Absent on legacy/2-player
+   * states, which are treated as all-`active`. Turn advancement skips any seat
+   * that is not `active`.
+   */
+  seatStatus?: SeatStatus[];
+  /** Seat indices in the order they emptied their hands (Ranking mode). */
+  finishedOrder?: number[];
+  /** Seat indices in the order they were dropped (grace expiry / explicit quit). */
+  eliminatedOrder?: number[];
 }
 
 // ========== Public / Private Views ==========
