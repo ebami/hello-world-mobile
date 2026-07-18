@@ -10,9 +10,7 @@ import { roomManager } from './roomManager';
 
 // Helper to reset room manager state between tests
 function resetRoomManager() {
-  // Access private rooms Map and clear it
-  // This is a workaround since there's no public reset method
-  (roomManager as any).rooms.clear();
+  roomManager.resetForTests();
 }
 
 describe('RoomManager', () => {

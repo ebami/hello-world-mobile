@@ -26,6 +26,11 @@ import { makeProtocolError } from '@hello-world/game-core';
 import type { TypedSocket } from '../types';
 import { logger } from '../logger';
 import { recordMetric } from '../metricsHooks';
+import {
+  RoomFullError,
+  GameAlreadyStartedError,
+  NameTakenError,
+} from '../roomErrors';
 
 /**
  * Shape of the acknowledgement callback for room events. Success returns a
@@ -59,22 +64,23 @@ export function domainError(
 }
 
 /**
- * Map a known `RoomManager` error message to a thrown {@link ProtocolError}.
- * Unknown errors are returned as-is so {@link guard} logs them and replies
- * with a generic `INTERNAL_ERROR` — never leaking internal detail.
+ * Map a known {@link RoomManagerError} to a thrown {@link ProtocolError},
+ * classifying by error **type** rather than message text so rewording a domain
+ * message can never silently degrade a known failure to `INTERNAL_ERROR`.
+ * Unknown errors are returned as-is so {@link guard} logs them and replies with
+ * a generic `INTERNAL_ERROR` — never leaking internal detail.
  */
 export function translateRoomError(error: unknown): unknown {
-  const message = error instanceof Error ? error.message : '';
-  switch (message) {
-    case 'Room is full':
-      return domainError('ROOM_FULL', 'This room is full.');
-    case 'Game already started':
-      return domainError('GAME_ALREADY_STARTED', 'The game has already started.');
-    case 'Name already taken in this room':
-      return domainError('NAME_TAKEN', 'That name is already taken in this room.');
-    default:
-      return error;
+  if (error instanceof RoomFullError) {
+    return domainError('ROOM_FULL', 'This room is full.');
   }
+  if (error instanceof GameAlreadyStartedError) {
+    return domainError('GAME_ALREADY_STARTED', 'The game has already started.');
+  }
+  if (error instanceof NameTakenError) {
+    return domainError('NAME_TAKEN', 'That name is already taken in this room.');
+  }
+  return error;
 }
 
 /**

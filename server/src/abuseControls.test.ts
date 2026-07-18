@@ -25,7 +25,7 @@ function start(overrides: Partial<ServerConfig> = {}): Promise<string> {
 }
 
 beforeEach(() => {
-  (roomManager as unknown as { rooms: Map<string, unknown> }).rooms.clear();
+  roomManager.resetForTests();
   resetAbuseControls();
   resetMetrics();
 });

@@ -101,7 +101,6 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 export interface GameTransport {
   /**
    * Establish connection to the game backend.
-   * For LocalTransport, this initializes the game immediately.
    * For SocketTransport, this connects to the server.
    */
   connect(): Promise<void>;

@@ -9,7 +9,7 @@ import type { Card, GameState, TypedServer, TypedSocket } from './types';
 
 // Helper to reset room manager state between tests
 function resetRoomManager() {
-  (roomManager as any).rooms.clear();
+  roomManager.resetForTests();
 }
 
 // Helper to create a mock game state

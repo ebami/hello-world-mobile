@@ -28,7 +28,7 @@ afterAll((done) => {
 });
 
 beforeEach(() => {
-  (roomManager as unknown as { rooms: Map<string, unknown> }).rooms.clear();
+  roomManager.resetForTests();
   resetAbuseControls();
   resetLifecycle();
 });

@@ -1,10 +1,10 @@
 # Networking Module
 
-Transport-agnostic networking layer enabling unified game UI across single-player, local multiplayer, and online multiplayer modes.
+Networking layer for online multiplayer. Single-player is handled directly by `screens/GameScreen` via its own reducer and does not use a transport.
 
 ## Overview
 
-The networking module provides a `GameTransport` interface that abstracts communication between the game UI and the game state, whether that state lives locally (single-player) or on a remote server (multiplayer).
+The networking module provides a `GameTransport` interface abstracting communication between the game UI and the server-authoritative game state. The only live implementation is `SocketTransport` (online multiplayer).
 
 ## Architecture
 
@@ -13,31 +13,10 @@ networking/
 ├── types.ts           # Core interfaces and type definitions
 ├── socket.ts          # Socket.IO connection utility
 ├── socketTransport.ts # Online multiplayer transport
-├── localTransport.ts  # Single-player transport (wraps game logic)
 └── index.ts           # Module exports
 ```
 
 ## Quick Start
-
-### Single-Player Mode
-
-```typescript
-import { LocalTransport } from './networking';
-
-const transport = new LocalTransport('medium');
-transport.setCallbacks({
-  onStateUpdate: (state) => updateUI(state),
-  onHandUpdate: (hand) => updatePlayerHand(hand),
-  onGameOver: (winnerId, message) => showGameOver(message),
-});
-
-await transport.connect(); // Initializes game immediately
-
-// Player actions
-transport.sendAction({ type: 'PLAY_CARDS', cards: [card] });
-transport.sendAction({ type: 'DRAW_CARD' });
-transport.sendAction({ type: 'DECLARE_LAST_CARD', player: 0 });
-```
 
 ### Multiplayer Mode
 
@@ -128,21 +107,6 @@ type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 ```
 
 ## Transport Implementations
-
-### LocalTransport
-
-For single-player mode against AI. Wraps the existing game logic from `game/` and executes synchronously.
-
-**Features:**
-- Immediate state updates (no network latency)
-- Configurable AI difficulty
-- Automatic bot turn scheduling
-- Same callback interface as multiplayer
-
-**Constructor:**
-```typescript
-new LocalTransport(difficulty: 'easy' | 'medium' | 'hard')
-```
 
 ### SocketTransport
 

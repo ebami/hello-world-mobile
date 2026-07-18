@@ -7,6 +7,7 @@
 // stale-socket detection during authorization.
 import type { RoomInfo, PlayerSummary, GameState, RoomPhase } from './types';
 import { logger } from './logger';
+import { RoomFullError, GameAlreadyStartedError, NameTakenError } from './roomErrors';
 
 interface RoomData {
   info: RoomInfo;
@@ -120,17 +121,17 @@ class RoomManager {
 
     // Joining is a LOBBY-only transition (MFP-05).
     if (room.phase !== 'LOBBY') {
-      throw new Error('Game already started');
+      throw new GameAlreadyStartedError();
     }
 
     if (room.info.players.length >= room.info.maxPlayers) {
-      throw new Error('Room is full');
+      throw new RoomFullError();
     }
 
     // Display-name uniqueness is retained within a single room for clarity, but
     // it is a presentation constraint only — never an identity/auth check.
     if (room.info.players.some(p => p.displayName === playerName)) {
-      throw new Error('Name already taken in this room');
+      throw new NameTakenError();
     }
 
     const player: PlayerSummary = {
@@ -449,6 +450,15 @@ class RoomManager {
   deleteRoom(roomId: string): void {
     this.rooms.delete(roomId);
     logger.info('room deleted', { event: 'room_deleted', roomId });
+  }
+
+  /**
+   * Test-only: drop all rooms so each suite starts from a clean slate. The
+   * singleton `roomManager` is shared across server test files, so suites call
+   * this in `beforeEach` instead of reaching through the private `rooms` field.
+   */
+  resetForTests(): void {
+    this.rooms.clear();
   }
 }
 

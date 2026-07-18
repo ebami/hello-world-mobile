@@ -37,8 +37,7 @@ hello-world-mobile/
 ├── networking/              # Transport-agnostic communication
 │   ├── types.ts             # GameTransport interface
 │   ├── socket.ts            # Socket.IO connection utility
-│   ├── socketTransport.ts   # Multiplayer transport
-│   └── localTransport.ts    # Single-player transport
+│   └── socketTransport.ts   # Multiplayer transport
 ├── stores/                  # Zustand state management
 │   └── sessionStore.ts      # Connection and lobby state
 ├── screens/                 # UI screens
@@ -304,8 +303,7 @@ interface GameTransport {
 }
 ```
 
-- **LocalTransport** — Wraps game logic for single-player
-- **SocketTransport** — Connects to server for multiplayer
+- **SocketTransport** — Connects to server for multiplayer (single-player runs directly in `GameScreen`)
 
 ### State Management
 
