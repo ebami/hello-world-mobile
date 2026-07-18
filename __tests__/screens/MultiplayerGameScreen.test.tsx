@@ -303,4 +303,48 @@ describe('MultiplayerGameScreen', () => {
       expect(mockOnBack).toHaveBeenCalled();
     });
   });
+
+  describe('multi-opponent rendering (3-4 players)', () => {
+    const fourPlayerState: PublicGameView = {
+      ...mockInitialState,
+      currentPlayer: 0,
+      lastCardCalled: [false, false, false, false],
+      hasPlayed: [true, true, true, true],
+      players: [
+        { playerId: 'player-1', displayName: 'Alice', handCount: 5, connected: true, isBot: false },
+        { playerId: 'player-2', displayName: 'Bob', handCount: 0, connected: true, isBot: false, status: 'finished' },
+        { playerId: 'player-3', displayName: 'Carol', handCount: 0, connected: true, isBot: false, status: 'eliminated' },
+        { playerId: 'player-4', displayName: 'Dave', handCount: 4, connected: false, isBot: false, status: 'active' },
+      ],
+    };
+
+    it('renders every opponent with name and hand count', () => {
+      const { getByText } = render(
+        <MultiplayerGameScreen
+          transport={mockTransport}
+          initialState={fourPlayerState}
+          initialHand={mockInitialHand}
+          onBack={mockOnBack}
+        />
+      );
+      expect(getByText('Bob')).toBeTruthy();
+      expect(getByText('Carol')).toBeTruthy();
+      expect(getByText('Dave')).toBeTruthy();
+      expect(getByText('4 cards')).toBeTruthy();
+    });
+
+    it('distinguishes finished, eliminated, and reconnecting opponents (R16)', () => {
+      const { getByText } = render(
+        <MultiplayerGameScreen
+          transport={mockTransport}
+          initialState={fourPlayerState}
+          initialHand={mockInitialHand}
+          onBack={mockOnBack}
+        />
+      );
+      expect(getByText('🏁 Finished')).toBeTruthy();
+      expect(getByText('🚪 Left')).toBeTruthy();
+      expect(getByText('📵 Reconnecting')).toBeTruthy();
+    });
+  });
 });

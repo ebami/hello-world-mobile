@@ -8,10 +8,55 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import type { Card as CardType, Suit, PublicGameView, PrivateHandPayload } from '../game/types';
+import type { Card as CardType, Suit, PublicGameView, PrivateHandPayload, SeatStatus } from '../game/types';
 import { getValidMoves } from '../game';
 import { PlayerArea, DiscardPile, ActionButtons, SuitPicker, GameOverOverlay, ConfirmDialog, Toast, type ToastVariant } from '../components';
 import type { GameTransport, ConnectionStatus } from '../networking/types';
+
+/**
+ * A compact opponent seat for 3-4 player games: name, hidden hand count, a
+ * turn highlight, and a status badge distinguishing an active opponent from one
+ * who has finished, been dropped, or is mid-reconnect (R14-R16).
+ */
+function OpponentSeat({
+  name,
+  handCount,
+  isCurrentTurn,
+  status,
+  connected,
+}: {
+  readonly name: string;
+  readonly handCount: number;
+  readonly isCurrentTurn: boolean;
+  readonly status?: SeatStatus;
+  readonly connected: boolean;
+}) {
+  const badge =
+    status === 'finished'
+      ? '🏁 Finished'
+      : status === 'eliminated'
+        ? '🚪 Left'
+        : !connected
+          ? '📵 Reconnecting'
+          : null;
+  const dimmed = status === 'eliminated';
+  return (
+    <View
+      style={[
+        styles.oppSeat,
+        isCurrentTurn && styles.oppSeatActive,
+        dimmed && styles.oppSeatDimmed,
+      ]}
+    >
+      <Text style={styles.oppAvatar}>{status === 'eliminated' ? '🚪' : '👤'}</Text>
+      <Text style={styles.oppName} numberOfLines={1}>
+        {name}
+      </Text>
+      <Text style={styles.oppCount}>{handCount} cards</Text>
+      {badge && <Text style={styles.oppBadge}>{badge}</Text>}
+    </View>
+  );
+}
 
 interface MultiplayerGameScreenProps {
   readonly transport: GameTransport;
@@ -196,8 +241,11 @@ export default function MultiplayerGameScreen({
     onBack();
   }, [transport, onBack]);
 
-  // Get opponent data - find first opponent
-  const mainOpponent = gameState.players.find(p => p.playerId !== myPlayerId);
+  // All opponents in seat order (presentation order matches the frozen seat
+  // order during a game), each tagged with their seat index for turn detection.
+  const opponents = gameState.players
+    .map((player, index) => ({ player, index }))
+    .filter(({ player }) => player.playerId !== myPlayerId);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -236,16 +284,30 @@ export default function MultiplayerGameScreen({
 
       {/* Game Area */}
       <View style={styles.gameArea}>
-        {/* Opponent Area */}
-        {mainOpponent && (
+        {/* Opponent Area — a single opponent renders as today (2-player); 2-3
+            opponents render as a row of compact seats around the top (R13-R16). */}
+        {opponents.length === 1 ? (
           <PlayerArea
-            name={mainOpponent.isBot ? '🤖 Bot' : `👤 ${mainOpponent.displayName}`}
-            cards={Array.from({ length: mainOpponent.handCount }, (_, i) => ({ id: `hidden-${i}`, rank: 'A', suit: '♠' }))}
-            isCurrentTurn={gameState.currentPlayer !== myPlayerIndex}
+            name={opponents[0].player.isBot ? '🤖 Bot' : `👤 ${opponents[0].player.displayName}`}
+            cards={Array.from({ length: opponents[0].player.handCount }, (_, i) => ({ id: `hidden-${i}`, rank: 'A' as const, suit: '♠' as const }))}
+            isCurrentTurn={gameState.currentPlayer === opponents[0].index}
             faceDown
-            score={mainOpponent.handCount}
+            score={opponents[0].player.handCount}
             isOpponent
           />
+        ) : (
+          <View style={styles.opponentsRow}>
+            {opponents.map(({ player, index }) => (
+              <OpponentSeat
+                key={player.playerId}
+                name={player.isBot ? '🤖 Bot' : player.displayName}
+                handCount={player.handCount}
+                isCurrentTurn={gameState.currentPlayer === index}
+                status={player.status}
+                connected={player.connected}
+              />
+            ))}
+          </View>
         )}
 
         {/* Discard Pile & Deck */}
@@ -343,6 +405,52 @@ const styles = StyleSheet.create({
   gameArea: {
     flex: 1,
     justifyContent: 'space-evenly',
+  },
+  opponentsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingTop: 6,
+  },
+  oppSeat: {
+    minWidth: 88,
+    maxWidth: 120,
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  oppSeatActive: {
+    borderColor: '#ffd700',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+  },
+  oppSeatDimmed: {
+    opacity: 0.5,
+  },
+  oppAvatar: {
+    fontSize: 22,
+  },
+  oppName: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+    maxWidth: 104,
+  },
+  oppCount: {
+    color: '#cfd3db',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  oppBadge: {
+    color: '#ffd700',
+    fontSize: 11,
+    marginTop: 3,
+    fontWeight: '600',
   },
   buttonWrapper: {
     flexShrink: 0,
