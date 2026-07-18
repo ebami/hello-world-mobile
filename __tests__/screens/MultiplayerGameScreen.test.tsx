@@ -180,7 +180,7 @@ describe('MultiplayerGameScreen', () => {
         />
       );
 
-      capturedCallbacks.onGameOver?.('player-1', 'You win!', 'win');
+      capturedCallbacks.onGameOver?.('player-1', 'You win!', 'win', []);
 
       await waitFor(() => {
         expect(getByText('🎉 Victory!')).toBeTruthy();
@@ -200,7 +200,7 @@ describe('MultiplayerGameScreen', () => {
         />
       );
 
-      capturedCallbacks.onGameOver?.('player-2', 'Bob wins!', 'win');
+      capturedCallbacks.onGameOver?.('player-2', 'Bob wins!', 'win', []);
 
       await waitFor(() => {
         expect(getByText('😔 Defeat')).toBeTruthy();
@@ -219,7 +219,7 @@ describe('MultiplayerGameScreen', () => {
 
       // Winner is the local player (player-1); reason distinguishes it from a
       // natural win without parsing the message.
-      capturedCallbacks.onGameOver?.('player-1', 'Alice wins by forfeit!', 'forfeit');
+      capturedCallbacks.onGameOver?.('player-1', 'Alice wins by forfeit!', 'forfeit', []);
 
       await waitFor(() => {
         expect(getByText('🎉 Victory!')).toBeTruthy();
@@ -345,6 +345,66 @@ describe('MultiplayerGameScreen', () => {
       expect(getByText('🏁 Finished')).toBeTruthy();
       expect(getByText('🚪 Left')).toBeTruthy();
       expect(getByText('📵 Reconnecting')).toBeTruthy();
+    });
+  });
+
+  describe('game over and finishing order (3-4 players)', () => {
+    const fourPlayerState: PublicGameView = {
+      ...mockInitialState,
+      currentPlayer: 3,
+      lastCardCalled: [false, false, false, false],
+      hasPlayed: [true, true, true, true],
+      players: [
+        { playerId: 'player-1', displayName: 'Alice', handCount: 2, connected: true, isBot: false },
+        { playerId: 'player-2', displayName: 'Bob', handCount: 0, connected: true, isBot: false, status: 'finished' },
+        { playerId: 'player-3', displayName: 'Carol', handCount: 4, connected: true, isBot: false },
+        { playerId: 'player-4', displayName: 'Dave', handCount: 3, connected: true, isBot: false },
+      ],
+    };
+
+    it('renders the finishing order on game over (U9)', async () => {
+      const { getByText } = render(
+        <MultiplayerGameScreen
+          transport={mockTransport}
+          initialState={fourPlayerState}
+          initialHand={mockInitialHand}
+          onBack={mockOnBack}
+        />
+      );
+
+      capturedCallbacks.onGameOver?.('player-2', 'Bob wins!', 'last_standing', [
+        { playerId: 'player-2', place: 1, outcome: 'finished' },
+        { playerId: 'player-1', place: 2, outcome: 'finished' },
+        { playerId: 'player-3', place: 3, outcome: 'survivor' },
+        { playerId: 'player-4', place: 4, outcome: 'eliminated' },
+      ]);
+
+      await waitFor(() => {
+        expect(getByText('1. Bob')).toBeTruthy();
+        expect(getByText('2. Alice (You)')).toBeTruthy();
+        expect(getByText('4. Dave — left')).toBeTruthy();
+      });
+    });
+
+    it('shows the interim finished banner when the local player has gone out (R6)', () => {
+      const finishedState: PublicGameView = {
+        ...fourPlayerState,
+        players: fourPlayerState.players.map((p) =>
+          p.playerId === 'player-1'
+            ? { ...p, handCount: 0, status: 'finished' as const }
+            : p,
+        ),
+      };
+      const { getByText } = render(
+        <MultiplayerGameScreen
+          transport={mockTransport}
+          initialState={finishedState}
+          initialHand={mockInitialHand}
+          onBack={mockOnBack}
+        />
+      );
+
+      expect(getByText('🏁 You finished — waiting for the match to end')).toBeTruthy();
     });
   });
 });

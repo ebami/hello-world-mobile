@@ -168,8 +168,12 @@ export class SocketTransport implements GameTransport {
       this.callbacks.onGameStart?.(state, hand);
     });
 
-    this.socket.on('game_over', (winnerId, message, reason) => {
-      this.callbacks.onGameOver?.(winnerId, message, reason);
+    this.socket.on('game_over', (winnerId, message, reason, standings) => {
+      this.callbacks.onGameOver?.(winnerId, message, reason, standings);
+    });
+
+    this.socket.on('player_left', (playerId, displayName) => {
+      this.callbacks.onPlayerLeft?.(playerId, displayName);
     });
 
     this.socket.on('player_action', (playerId, action) => {

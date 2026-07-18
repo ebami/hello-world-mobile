@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import type { Card as CardType, Suit, PublicGameView, PrivateHandPayload, SeatStatus } from '../game/types';
+import type { Card as CardType, Suit, PublicGameView, PrivateHandPayload, SeatStatus, Standing } from '../game/types';
 import { getValidMoves } from '../game';
 import { PlayerArea, DiscardPile, ActionButtons, SuitPicker, GameOverOverlay, ConfirmDialog, Toast, type ToastVariant } from '../components';
 import type { GameTransport, ConnectionStatus } from '../networking/types';
@@ -87,10 +87,16 @@ export default function MultiplayerGameScreen({
   // Win/lose screen. winner: 0 = you, 1 = opponent, null = draw (matches
   // GameOverOverlay's convention). `forfeit` is true when the opponent left an
   // active game. Driven by the server's game_over event.
-  const [gameOver, setGameOver] = useState<{ visible: boolean; winner: number | null; forfeit: boolean }>({
+  const [gameOver, setGameOver] = useState<{
+    visible: boolean;
+    winner: number | null;
+    forfeit: boolean;
+    standings: Standing[];
+  }>({
     visible: false,
     winner: null,
     forfeit: false,
+    standings: [],
   });
   // Default 'connected' since this screen is only mounted after a live session.
   // A transport drop moves this to 'connecting' until session resume succeeds,
@@ -125,6 +131,27 @@ export default function MultiplayerGameScreen({
       : runs.some((run) => run.length === hand.length);
   }, [gameState, hand, validMoves, myPlayerIndex]);
 
+  // Resolve the finishing order (from game_over) to display rows at render time,
+  // so names come from current state rather than a stale callback closure.
+  const playersById = useMemo(() => {
+    const map: Record<string, string> = {};
+    gameState.players.forEach((p) => {
+      map[p.playerId] = p.isBot ? 'Bot' : p.displayName;
+    });
+    return map;
+  }, [gameState.players]);
+
+  const standingRows = useMemo(
+    () =>
+      gameOver.standings.map((s) => ({
+        place: s.place,
+        name: playersById[s.playerId] ?? 'Player',
+        isYou: s.playerId === myPlayerId,
+        outcome: s.outcome,
+      })),
+    [gameOver.standings, playersById, myPlayerId],
+  );
+
   // Set up transport callbacks
   useEffect(() => {
     transport.setCallbacks({
@@ -137,14 +164,15 @@ export default function MultiplayerGameScreen({
           setHand(payload.hand);
         }
       },
-      onGameOver: (winnerId, _message, reason) => {
+      onGameOver: (winnerId, _message, reason, standings) => {
         // Map the server's winner id to GameOverOverlay's convention
-        // (0 = you, 1 = opponent, null = draw). Rendering the overlay works on
-        // web, unlike Alert.alert which react-native-web silently ignores.
-        // `reason` tells us a forfeit apart from a natural win without parsing
-        // the message; a forfeit is only ever seen by the remaining winner.
+        // (0 = you, 1 = opponent, null = draw). `reason` distinguishes a forfeit
+        // from a natural win; `standings` carries the 3-4 player finishing order.
         const winner = winnerId === null ? null : winnerId === myPlayerId ? 0 : 1;
-        setGameOver({ visible: true, winner, forfeit: reason === 'forfeit' });
+        setGameOver({ visible: true, winner, forfeit: reason === 'forfeit', standings: standings ?? [] });
+      },
+      onPlayerLeft: (_playerId, displayName) => {
+        setToast({ message: `${displayName} left the game.`, variant: 'info' });
       },
       onError: (error) => {
         setToast({ message: error, variant: 'error' });
@@ -247,6 +275,11 @@ export default function MultiplayerGameScreen({
     .map((player, index) => ({ player, index }))
     .filter(({ player }) => player.playerId !== myPlayerId);
 
+  // In Ranking mode a player who has gone out keeps watching until the match
+  // ends; show an interim banner instead of a frozen board (R6).
+  const iFinishedWaiting =
+    gameState.players[myPlayerIndex]?.status === 'finished' && !gameOver.visible;
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar style="light" />
@@ -266,6 +299,14 @@ export default function MultiplayerGameScreen({
       {!isConnected && (
         <View style={styles.reconnectingBanner}>
           <Text style={styles.reconnectingText}>Reconnecting…</Text>
+        </View>
+      )}
+
+      {iFinishedWaiting && (
+        <View style={styles.finishedBanner}>
+          <Text style={styles.finishedBannerText}>
+            🏁 You finished — waiting for the match to end
+          </Text>
         </View>
       )}
 
@@ -364,6 +405,7 @@ export default function MultiplayerGameScreen({
         visible={gameOver.visible}
         winner={gameOver.winner}
         forfeit={gameOver.forfeit}
+        standings={standingRows}
         onPlayAgain={onPlayAgain}
         onMainMenu={onBack}
       />
@@ -488,6 +530,16 @@ const styles = StyleSheet.create({
   },
   reconnectingText: {
     color: '#1a1a2e',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  finishedBanner: {
+    backgroundColor: '#2563eb',
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  finishedBannerText: {
+    color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
   },

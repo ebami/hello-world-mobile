@@ -40,6 +40,14 @@ interface GameOverOverlayProps {
   /** When the local player won because the opponent forfeited (left an active
    * game). Only meaningful alongside a win; changes the subtitle wording. */
   readonly forfeit?: boolean;
+  /** Full finishing order for 3-4 player games. When provided (length > 1), a
+   * ranked list is shown below the subtitle. */
+  readonly standings?: ReadonlyArray<{
+    place: number;
+    name: string;
+    isYou: boolean;
+    outcome: 'finished' | 'survivor' | 'eliminated';
+  }>;
 }
 
 /**
@@ -150,6 +158,7 @@ export default function GameOverOverlay({
   onMainMenu,
   onViewStats,
   forfeit = false,
+  standings,
 }: GameOverOverlayProps) {
   const fadeProgress = useSharedValue(0);
   const scaleProgress = useSharedValue(0.8);
@@ -259,6 +268,22 @@ export default function GameOverOverlay({
           {subtitle}
         </Text>
 
+        {/* Finishing order (3-4 player games) */}
+        {standings && standings.length > 1 && (
+          <View style={styles.standings}>
+            {standings.map((s) => (
+              <Text
+                key={`${s.place}-${s.name}`}
+                style={[styles.standingText, s.isYou && styles.standingYou]}
+              >
+                {s.place}. {s.name}
+                {s.isYou ? ' (You)' : ''}
+                {s.outcome === 'eliminated' ? ' — left' : ''}
+              </Text>
+            ))}
+          </View>
+        )}
+
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           {onPlayAgain && (
@@ -331,6 +356,19 @@ const styles = StyleSheet.create({
     color: '#a0a0a0',
     marginBottom: 40,
     textAlign: 'center',
+  },
+  standings: {
+    marginBottom: 30,
+    gap: 6,
+    alignItems: 'center',
+  },
+  standingText: {
+    color: '#cfd3db',
+    fontSize: 16,
+  },
+  standingYou: {
+    color: '#ffd700',
+    fontWeight: 'bold',
   },
   buttonContainer: {
     width: '100%',

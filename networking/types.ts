@@ -42,6 +42,7 @@ import type {
   CreateRoomOptions,
   JoinRoomOptions,
   GameOverReason,
+  Standing,
 } from '@hello-world/game-core';
 
 /**
@@ -58,8 +59,16 @@ export interface TransportCallbacks {
   /** Called when the game starts */
   onGameStart: (state: PublicGameView, hand: PrivateHandPayload) => void;
   /** Called when the game ends. `reason` distinguishes a natural win from a
-   * draw or an opponent forfeit without parsing `message`. */
-  onGameOver: (winnerId: string | null, message: string, reason: GameOverReason) => void;
+   * draw or an opponent forfeit without parsing `message`; `standings` carries
+   * the finishing order for 3-4 player games (empty for 2-player / draw). */
+  onGameOver: (
+    winnerId: string | null,
+    message: string,
+    reason: GameOverReason,
+    standings: Standing[],
+  ) => void;
+  /** Called when a player leaves mid-game (3-4 players) but the game continues. */
+  onPlayerLeft?: (playerId: string, displayName: string) => void;
   /** Called when any player takes an action */
   onPlayerAction: (playerId: string, action: GameAction) => void;
   /** Called when an error occurs */
