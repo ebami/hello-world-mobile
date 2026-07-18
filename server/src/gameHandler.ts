@@ -8,6 +8,7 @@ import type {
   PlayCardsCommand,
   CommandMetadata,
   GameOverReason,
+  Standing,
 } from '@hello-world/game-core';
 import {
   generateDeck,
@@ -29,6 +30,14 @@ import { recordMetric } from './metricsHooks';
 
 function toPublicView(state: GameState, roomId: string): PublicGameView {
   const room = roomManager.getRoom(roomId);
+  const seatOrder = roomManager.getSeatOrder(roomId);
+  // Attach each player's seat lifecycle status so clients can distinguish a
+  // finisher from a dropout without inferring it from hand counts.
+  const players = (room?.players ?? []).map((p) => {
+    const seat = seatOrder.indexOf(p.playerId);
+    const status = seat !== -1 ? state.seatStatus?.[seat] : undefined;
+    return status ? { ...p, status } : p;
+  });
   return {
     roomId,
     deckCount: state.deck.length,
@@ -40,10 +49,28 @@ function toPublicView(state: GameState, roomId: string): PublicGameView {
     drawPressure: state.drawPressure,
     hasPlayed: state.hasPlayed,
     activeSuit: state.activeSuit ?? null,
-    players: room?.players ?? [],
+    players,
     phase: room?.phase,
     stateVersion: roomManager.getStateVersion(roomId),
   };
+}
+
+/**
+ * Map an engine standings order (seat indices, best first) to wire `Standing`s,
+ * resolving each seat to its opaque player id and lifecycle outcome.
+ */
+function buildStandings(roomId: string, state: GameState, order: number[]): Standing[] {
+  const seatOrder = roomManager.getSeatOrder(roomId);
+  return order.map((seat, i) => {
+    const seatState = state.seatStatus?.[seat];
+    const outcome: Standing['outcome'] =
+      seatState === 'finished'
+        ? 'finished'
+        : seatState === 'eliminated'
+          ? 'eliminated'
+          : 'survivor';
+    return { playerId: seatOrder[seat], place: i + 1, outcome };
+  });
 }
 
 /**
@@ -77,8 +104,9 @@ function announceGameOver(
   winnerId: string | null,
   message: string,
   reason: GameOverReason,
+  standings: Standing[] = [],
 ): void {
-  io.to(roomId).emit('game_over', winnerId, message, reason);
+  io.to(roomId).emit('game_over', winnerId, message, reason, standings);
 }
 
 /**
@@ -126,10 +154,14 @@ export function forfeitAndComplete(
       endgame.winnerSeat !== null ? seatOrder[endgame.winnerSeat] ?? null : null;
     const winner = winnerId ? roomManager.getPlayer(roomId, winnerId) : null;
     const message = winner ? `${winner.displayName} wins by forfeit!` : 'Game over.';
+    const standings = buildStandings(roomId, gameState, endgame.standings);
     recordMetric('game_completed', { reason: 'forfeit' });
-    announceGameOver(io, roomId, winnerId, message, 'forfeit');
+    announceGameOver(io, roomId, winnerId, message, 'forfeit', standings);
   } else {
-    // Game continues with the remaining players — refresh the roster view.
+    // Game continues with the remaining players — announce the drop and refresh
+    // the roster view.
+    const leaver = roomManager.getPlayer(roomId, leaverId);
+    io.to(roomId).emit('player_left', leaverId, leaver?.displayName ?? 'A player');
     const updatedRoom = roomManager.getRoom(roomId);
     if (updatedRoom) {
       io.to(roomId).emit('room_updated', updatedRoom);
@@ -500,8 +532,13 @@ export function handleGameAction(
       endgame.winnerSeat !== null ? seatOrder[endgame.winnerSeat] ?? null : null;
     const winner = winnerId ? roomManager.getPlayer(roomId, winnerId) : null;
     const message = winner ? `${winner.displayName} wins!` : "It's a draw!";
+    // Ranking games report the full finishing order; two-player / first-out
+    // report a single winner (or a draw).
+    const reason: GameOverReason =
+      endgameMode === 'ranking' ? 'last_standing' : winnerId ? 'win' : 'draw';
+    const standings = buildStandings(roomId, gameState, endgame.standings);
     recordMetric('game_completed', { reason: winnerId ? 'win' : 'draw' });
-    announceGameOver(io, roomId, winnerId, message, winnerId ? 'win' : 'draw');
+    announceGameOver(io, roomId, winnerId, message, reason, standings);
   }
 }
 

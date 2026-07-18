@@ -86,6 +86,12 @@ export interface PlayerSummary {
   handCount: number;
   connected: boolean;
   isBot: boolean;
+  /**
+   * Seat lifecycle status during an active game (3-4 players): `active`,
+   * `finished` (went out in Ranking mode), or `eliminated` (dropped mid-game).
+   * Omitted in the lobby and for legacy 2-player states.
+   */
+  status?: SeatStatus;
 }
 
 export interface PublicGameView {
@@ -347,7 +353,14 @@ export interface ServerToClientEvents {
   hand_update: (payload: PrivateHandPayload) => void;
   player_action: (playerId: string, action: GameAction) => void;
   game_start: (state: PublicGameView, hand: PrivateHandPayload) => void;
-  game_over: (winnerId: string | null, message: string, reason: GameOverReason) => void;
+  game_over: (
+    winnerId: string | null,
+    message: string,
+    reason: GameOverReason,
+    standings: Standing[],
+  ) => void;
+  /** A player left mid-game (3-4 players) but the game continues. */
+  player_left: (playerId: string, displayName: string) => void;
   error: (message: string) => void;
   /** Planned graceful shutdown notice (MFP-09); clients may show a notice. */
   server_shutdown: (message: string) => void;

@@ -869,6 +869,68 @@ describe('GameHandler - lifecycle, seat mapping, and forfeits (MFP-05)', () => {
     expect(roomManager.getPhase(roomId)).toBe('ACTIVE'); // still resumable, not dropped
     expect(emits.some((e) => e.event === 'game_state_update')).toBe(true);
   });
+
+  it('emits standings when a Ranking game ends by drops (U7)', () => {
+    const room = roomManager.createRoom('h', 'Alice', 's1', 3, 'ranking');
+    const roomId = room.roomId;
+    roomManager.joinRoom(roomId, 'p2', 'Bob', 's2');
+    roomManager.joinRoom(roomId, 'p3', 'Carol', 's3');
+    roomManager.setGameState(
+      roomId,
+      createMockGameState({
+        players: [[KH], [QD], [NINE_D]],
+        currentPlayer: 0,
+        lastCardCalled: [false, false, false],
+        hasPlayed: [true, true, true],
+        seatStatus: ['active', 'active', 'active'],
+        finishedOrder: [],
+        eliminatedOrder: [],
+      }),
+    );
+    const { io, emits } = makeIo();
+
+    forfeitAndComplete(io, roomId, 'p2'); // Bob drops → 2 active, continues
+    forfeitAndComplete(io, roomId, 'p3'); // Carol drops → Alice last standing
+
+    const overs = emits.filter((e) => e.event === 'game_over');
+    expect(overs).toHaveLength(1);
+    const standings = overs[0].args[3] as Array<{
+      playerId: string;
+      place: number;
+      outcome: string;
+    }>;
+    // Alice survives (1st); drops ranked below her in drop order (Bob then Carol).
+    expect(standings.map((s) => s.playerId)).toEqual(['h', 'p2', 'p3']);
+    expect(standings[0].outcome).toBe('survivor');
+    expect(standings[2].outcome).toBe('eliminated');
+  });
+
+  it('announces player_left when a drop keeps the game going (U7)', () => {
+    const roomId = seedActiveN(4);
+    const { io, emits } = makeIo();
+
+    forfeitAndComplete(io, roomId, 'p3'); // Carol drops, three remain
+
+    const left = emits.filter((e) => e.event === 'player_left');
+    expect(left).toHaveLength(1);
+    expect(left[0].args[0]).toBe('p3');
+    expect(left[0].args[1]).toBe('Carol');
+  });
+
+  it('includes per-seat status in the public view after a drop (U7)', () => {
+    const roomId = seedActiveN(4);
+    const { io, emits } = makeIo();
+
+    forfeitAndComplete(io, roomId, 'p3');
+
+    const update = emits.find((e) => e.event === 'game_state_update');
+    expect(update).toBeDefined();
+    const view = update!.args[0] as {
+      players: Array<{ playerId: string; status?: string }>;
+    };
+    expect(view.players.find((p) => p.playerId === 'p3')?.status).toBe('eliminated');
+    expect(view.players.find((p) => p.playerId === 'h')?.status).toBe('active');
+  });
 });
 
 describe('GameHandler - command versioning and deduplication (MFP-04)', () => {
