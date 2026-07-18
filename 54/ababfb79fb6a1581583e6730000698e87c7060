@@ -1,0 +1,32 @@
+__tests__/game/gameLogic.test.ts
+  s_6b27060451b9fb::t_8574d5cff4651f 9-10,13
+  s_6b27060451b9fb::t_43f00f96a8dfc7 274-400
+server/src/gameHandler.ts
+  s_6b27060451b9fb::t_015788f96ebfce 19-20
+  s_6b27060451b9fb::t_99cc4d54e3f9ee 180-182,338-343,375-381,407-410,413-414
+packages/game-core/src/gameLogic.ts
+  s_6b27060451b9fb::t_d6602a353ced49 3
+  s_6b27060451b9fb::t_733f25f6265b9c 162-183,228-231,248,255,264,268,272,278,285,297,299,306,341-345,375,379,393-395,435-508
+game/gameLogic.ts
+  s_6b27060451b9fb::t_1c5439ea727ff3 9-10,13
+game/types.ts
+  s_6b27060451b9fb::t_db9dee416985cb 8-10
+packages/game-core/src/types.ts
+  s_6b27060451b9fb::t_f46165d851abdb 63-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "54ababfb79fb6a1581583e6730000698e87c7060",
+  "prompts": {},
+  "sessions": {
+    "s_6b27060451b9fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a14fdb46-18f9-4f65-bb0a-a8f31d0b7003",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
