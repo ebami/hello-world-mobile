@@ -1,0 +1,25 @@
+__tests__/screens/MultiplayerGameScreen.test.tsx
+  s_6b27060451b9fb::t_adb18d41a27128 383-385
+components/GameOverOverlay.tsx
+  s_6b27060451b9fb::t_5259254764c145 154-160,174-180,246-248,253,255-259
+server/src/gameHandler.test.ts
+  s_6b27060451b9fb::t_3a67854654c296 873-886
+server/src/gameHandler.ts
+  s_6b27060451b9fb::t_37615781c92fd5 218-221,541
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "619c2ea522a88efb553f6b457cddfa6dccd0266b",
+  "prompts": {},
+  "sessions": {
+    "s_6b27060451b9fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a14fdb46-18f9-4f65-bb0a-a8f31d0b7003",
+        "model": "unknown"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
