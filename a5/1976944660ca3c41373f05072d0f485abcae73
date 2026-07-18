@@ -1,0 +1,32 @@
+server/src/roomManager.ts
+  s_6b27060451b9fb::t_a53b99401cc5ce 8
+  s_6b27060451b9fb::t_b22acbabec2df8 74-84,100
+packages/game-core/src/types.ts
+  s_6b27060451b9fb::t_0546a2296ee9b1 134-138,201-203,206-210,287-317,322-327,329
+server/src/roomManager.test.ts
+  s_6b27060451b9fb::t_01d11386696eb9 84-92
+server/src/socketServer.ts
+  s_6b27060451b9fb::t_7b3fd186dc230b 128
+server/src/socketValidation.test.ts
+  s_6b27060451b9fb::t_9dff0442bfb064 366-386
+server/src/types.ts
+  s_6b27060451b9fb::t_c0ec68a0246b64 15-17
+server/src/validation/schemas.ts
+  s_6b27060451b9fb::t_8af36b3ab94bdf 65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "a51976944660ca3c41373f05072d0f485abcae73",
+  "prompts": {},
+  "sessions": {
+    "s_6b27060451b9fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a14fdb46-18f9-4f65-bb0a-a8f31d0b7003",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
