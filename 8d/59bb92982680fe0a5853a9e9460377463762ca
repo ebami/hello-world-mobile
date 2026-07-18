@@ -1,0 +1,23 @@
+__tests__/game/gameLogic.test.ts
+  s_6b27060451b9fb::t_b34c07bc58cba1 11
+game/gameLogic.ts
+  s_6b27060451b9fb::t_71b59def1b2003 11
+packages/game-core/src/gameLogic.ts
+  s_6b27060451b9fb::t_b77da3656f42c2 509-558
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "8d59bb92982680fe0a5853a9e9460377463762ca",
+  "prompts": {},
+  "sessions": {
+    "s_6b27060451b9fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a14fdb46-18f9-4f65-bb0a-a8f31d0b7003",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
