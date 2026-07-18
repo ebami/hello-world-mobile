@@ -1,0 +1,27 @@
+screens/LobbyScreen.tsx
+  s_6b27060451b9fb::t_c2f6be8cf55669 27-28
+  s_6b27060451b9fb::t_75fde372851dcf 83-84,87-88
+  s_6b27060451b9fb::t_5b332b8d94af1d 103,196-235,374-415
+__tests__/screens/LobbyScreen.test.tsx
+  s_6b27060451b9fb::t_0216f51c503502 178-232
+__tests__/screens/WaitingRoomScreen.test.tsx
+  s_6b27060451b9fb::t_c3426d3909970d 137-159
+screens/WaitingRoomScreen.tsx
+  s_6b27060451b9fb::t_5f69a940c91d6f 106-113,145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "b8831a416f3fb408085c533e4bb2ab91416305fc",
+  "prompts": {},
+  "sessions": {
+    "s_6b27060451b9fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a14fdb46-18f9-4f65-bb0a-a8f31d0b7003",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
