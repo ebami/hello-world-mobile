@@ -1,0 +1,19 @@
+__tests__/networking/socketTransport.test.ts
+  s_6b27060451b9fb::t_1fdd9046e4c454 57,172,174-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "294a70516f5f1db0db5dab2428d74414a238c1e5",
+  "prompts": {},
+  "sessions": {
+    "s_6b27060451b9fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a14fdb46-18f9-4f65-bb0a-a8f31d0b7003",
+        "model": "unknown"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
