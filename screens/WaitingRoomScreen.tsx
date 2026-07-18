@@ -103,6 +103,14 @@ export default function WaitingRoomScreen({
     </View>
   );
 
+  // Surface the room's size and (for 3-4 player rooms) the host-chosen endgame
+  // mode so joiners know how the game will play before it starts.
+  const modeLabel = room.endgameMode === 'ranking' ? 'Play to ranking' : 'First out wins';
+  const roomSummary =
+    room.maxPlayers <= 2
+      ? 'Two-player match'
+      : `Up to ${room.maxPlayers} players • ${modeLabel}`;
+
   const canStart = isHost && players.length >= 2 && connectionStatus === 'connected';
 
   return (
@@ -134,7 +142,7 @@ export default function WaitingRoomScreen({
         <Text style={styles.sectionTitle}>
           Players ({players.length}/{room.maxPlayers})
         </Text>
-        <Text style={styles.sectionCaption}>Two-player match</Text>
+        <Text style={styles.sectionCaption}>{roomSummary}</Text>
         <FlatList
           data={players}
           renderItem={renderPlayer}

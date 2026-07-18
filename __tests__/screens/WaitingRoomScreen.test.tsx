@@ -134,6 +134,29 @@ describe('WaitingRoomScreen', () => {
       });
     });
 
+    it('shows the size and endgame mode for a 3-4 player room', async () => {
+      useSessionStore.getState().updatePlayers(mockRoom.players);
+
+      const rankedRoom: RoomInfo = {
+        ...mockRoom,
+        maxPlayers: 4,
+        endgameMode: 'ranking',
+      };
+
+      const { getByText } = render(
+        <WaitingRoomScreen
+          room={rankedRoom}
+          transport={mockTransport as any}
+          onBack={mockOnBack}
+          onGameStart={mockOnGameStart}
+        />
+      );
+
+      await waitFor(() => {
+        expect(getByText('Up to 4 players • Play to ranking')).toBeTruthy();
+      });
+    });
+
     it('should indicate host player', async () => {
       useSessionStore.getState().updatePlayers(mockRoom.players);
 

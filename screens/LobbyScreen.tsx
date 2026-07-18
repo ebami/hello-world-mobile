@@ -24,6 +24,8 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
   const [roomCode, setRoomCode] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [maxPlayers, setMaxPlayers] = useState(2);
+  const [endgameMode, setEndgameMode] = useState<'first_out' | 'ranking'>('first_out');
   const [transport, setTransport] = useState<SocketTransport | null>(null);
 
   const {
@@ -78,10 +80,12 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
     setError(null);
 
     try {
-      // Two-player online MVP (MFP-11): room size is server-authoritative, so
-      // the client does not request a size.
+      // The host chooses the room size (2-4) and, for 3-4 player rooms, the
+      // endgame mode. The server validates the request and owns the cap.
       const session = await transport.createRoom({
         playerName: playerName.trim(),
+        maxPlayers,
+        ...(maxPlayers >= 3 ? { endgameMode } : {}),
       });
       // Persist the server-issued opaque identity + reconnect token so host
       // status and (later) reconnect are driven by stable identity, not name.
@@ -96,7 +100,7 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
     } finally {
       setIsCreating(false);
     }
-  }, [playerName, transport, connectionStatus, savePlayerName, setPlayerId, setReconnectToken, onRoomJoined, setError]);
+  }, [playerName, maxPlayers, endgameMode, transport, connectionStatus, savePlayerName, setPlayerId, setReconnectToken, onRoomJoined, setError]);
 
   const handleJoinRoom = useCallback(async () => {
     console.log('[LobbyScreen] handleJoinRoom called');
@@ -189,6 +193,46 @@ export default function LobbyScreen({ onBack, onRoomJoined }: LobbyScreenProps) 
       {/* Create Room Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Create New Room</Text>
+
+        <Text style={styles.selectorLabel}>Players</Text>
+        <View style={styles.selectorRow}>
+          {[2, 3, 4].map((n) => (
+            <TouchableOpacity
+              key={n}
+              style={[styles.selectorChip, maxPlayers === n && styles.selectorChipActive]}
+              onPress={() => setMaxPlayers(n)}
+              disabled={isLoading}
+            >
+              <Text style={[styles.selectorChipText, maxPlayers === n && styles.selectorChipTextActive]}>
+                {n}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {maxPlayers >= 3 && (
+          <>
+            <Text style={styles.selectorLabel}>Endgame</Text>
+            <View style={styles.selectorRow}>
+              {([
+                ['first_out', 'First out wins'],
+                ['ranking', 'Play to ranking'],
+              ] as const).map(([mode, label]) => (
+                <TouchableOpacity
+                  key={mode}
+                  style={[styles.selectorChipWide, endgameMode === mode && styles.selectorChipActive]}
+                  onPress={() => setEndgameMode(mode)}
+                  disabled={isLoading}
+                >
+                  <Text style={[styles.selectorChipText, endgameMode === mode && styles.selectorChipTextActive]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
         <TouchableOpacity
           style={[styles.button, styles.createButton, (!isConnected || isLoading) && styles.buttonDisabled]}
           onPress={handleCreateRoom}
@@ -326,6 +370,48 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
+  },
+  selectorLabel: {
+    color: '#ccc',
+    fontSize: 14,
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  selectorRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  selectorChip: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  selectorChipWide: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  selectorChipActive: {
+    backgroundColor: 'rgba(74, 222, 128, 0.25)',
+    borderColor: '#4ade80',
+  },
+  selectorChipText: {
+    color: '#ccc',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  selectorChipTextActive: {
+    color: '#fff',
   },
   button: {
     paddingVertical: 15,

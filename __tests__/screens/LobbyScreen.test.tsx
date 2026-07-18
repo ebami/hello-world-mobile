@@ -175,6 +175,61 @@ describe('LobbyScreen', () => {
       await waitFor(() => {
         expect(mockTransportInstance.createRoom).toHaveBeenCalledWith({
           playerName: 'Alice',
+          maxPlayers: 2,
+        });
+      });
+    });
+
+    it('hides the endgame-mode selector at 2 players and shows it at 3-4', () => {
+      useSessionStore.getState().setConnectionStatus('connected');
+
+      const { getByText, queryByText } = render(
+        <LobbyScreen onBack={mockOnBack} onRoomJoined={mockOnRoomJoined} />
+      );
+
+      // Default is a 2-player room — no endgame-mode choice.
+      expect(queryByText('First out wins')).toBeNull();
+      expect(queryByText('Play to ranking')).toBeNull();
+
+      fireEvent.press(getByText('4'));
+
+      expect(getByText('First out wins')).toBeTruthy();
+      expect(getByText('Play to ranking')).toBeTruthy();
+    });
+
+    it('sends the chosen size and mode for a 4-player ranking room', async () => {
+      useSessionStore.getState().setConnectionStatus('connected');
+
+      const mockSession = {
+        room: { roomId: 'ABC123', hostId: 'id-1', players: [], maxPlayers: 4, endgameMode: 'ranking', isStarted: false },
+        playerId: 'id-1',
+        reconnectToken: 'token-abc',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      };
+      const mockTransportInstance = {
+        connect: jest.fn().mockResolvedValue(undefined),
+        disconnect: jest.fn(),
+        setCallbacks: jest.fn(),
+        createRoom: jest.fn().mockResolvedValue(mockSession),
+        joinRoom: jest.fn(),
+      };
+      (SocketTransport as jest.MockedClass<typeof SocketTransport>)
+        .mockImplementation(() => mockTransportInstance as unknown as SocketTransport);
+
+      const { getByText, getByPlaceholderText } = render(
+        <LobbyScreen onBack={mockOnBack} onRoomJoined={mockOnRoomJoined} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Enter your name'), 'Alice');
+      fireEvent.press(getByText('4'));
+      fireEvent.press(getByText('Play to ranking'));
+      fireEvent.press(getByText('Create Room'));
+
+      await waitFor(() => {
+        expect(mockTransportInstance.createRoom).toHaveBeenCalledWith({
+          playerName: 'Alice',
+          maxPlayers: 4,
+          endgameMode: 'ranking',
         });
       });
     });
