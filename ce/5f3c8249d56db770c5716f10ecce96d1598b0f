@@ -1,0 +1,29 @@
+server/src/gameHandler.test.ts
+  s_6b27060451b9fb::t_b3fbd9cf0126fb 609-641
+server/src/gameHandler.ts
+  s_6b27060451b9fb::t_7785e24f05962e 428-429,431-432
+server/src/roomManager.test.ts
+  s_6b27060451b9fb::t_b34db7a73d9aec 70-83
+server/src/socketServer.ts
+  s_6b27060451b9fb::t_45932f72fb17e5 40,119-122,127,424
+server/src/socketValidation.test.ts
+  s_6b27060451b9fb::t_52cc2f81a53f1d 190,332-355,359
+server/src/validation/schemas.ts
+  s_6b27060451b9fb::t_61565f3ec02bd9 24-27,30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "ce5f3c8249d56db770c5716f10ecce96d1598b0f",
+  "prompts": {},
+  "sessions": {
+    "s_6b27060451b9fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a14fdb46-18f9-4f65-bb0a-a8f31d0b7003",
+        "model": "unknown"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
