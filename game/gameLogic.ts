@@ -8,6 +8,7 @@ export {
   isGameOver,
   resolveEndgame,
   nextActiveIndex,
+  dropPlayer,
   declareLastCard,
 } from "@hello-world/game-core";
 export type { GameOverResult, EndgameResult } from "@hello-world/game-core";

@@ -507,6 +507,56 @@ export function resolveEndgame(state: GameState, mode: EndgameMode): EndgameResu
 }
 
 /**
+ * Remove a player mid-game (grace expiry or explicit quit). The leaver's hand is
+ * shuffled back into the draw deck so cards stay in circulation (R12), their seat
+ * is marked `eliminated` and appended to the drop-order ledger, and — if it was
+ * their turn — the turn advances to the next active seat. Any draw pressure aimed
+ * at the leaver is cleared rather than passed to the next active player, since the
+ * penalty was directed at the departing seat.
+ *
+ * Pure and player-count agnostic. It does NOT decide whether the game is now over;
+ * callers run {@link resolveEndgame} afterwards to detect the last-standing case
+ * and compute standings.
+ */
+export function dropPlayer(state: GameState, seat: number): GameState {
+  const total = state.players.length;
+  if (seat < 0 || seat >= total) return state;
+
+  const seatStatus: SeatStatus[] = state.seatStatus
+    ? [...state.seatStatus]
+    : state.players.map(() => "active");
+  // A seat that already finished or was eliminated cannot be dropped again.
+  if (seatStatus[seat] !== "active") return state;
+
+  const players = state.players.map((hand) => [...hand]);
+  const returned = players[seat];
+  players[seat] = [];
+  const deck = shuffleDeck([...state.deck, ...returned]);
+
+  seatStatus[seat] = "eliminated";
+  const eliminatedOrder = state.eliminatedOrder ? [...state.eliminatedOrder] : [];
+  eliminatedOrder.push(seat);
+
+  let currentPlayer = state.currentPlayer;
+  let drawPressure = state.drawPressure;
+  if (state.currentPlayer === seat) {
+    currentPlayer = nextActiveIndex(seat, state.direction, total, seatStatus);
+    drawPressure = 0;
+  }
+
+  return {
+    ...state,
+    deck,
+    players,
+    seatStatus,
+    eliminatedOrder,
+    currentPlayer,
+    drawPressure,
+    message: `Player ${seat + 1} left the game`,
+  };
+}
+
+/**
  * Attempt to declare "last card(s)" for the specified player.
  *
  * A declaration is valid only if every player has already taken at least one

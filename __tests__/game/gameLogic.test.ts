@@ -8,6 +8,7 @@ import {
   isGameOver,
   resolveEndgame,
   nextActiveIndex,
+  dropPlayer,
   declareLastCard,
 } from '../../game';
 import type { Card, GameState, SeatStatus } from '../../game/types';
@@ -396,5 +397,105 @@ describe('applyCardEffect — skips non-active seats when advancing', () => {
     const next = applyCardEffect(state, [{ id: '7♠', rank: '7', suit: '♠' }]);
     expect(next.currentPlayer).toBe(2);
     expect(next.seatStatus).toEqual(['active', 'finished', 'active']);
+  });
+});
+
+describe('dropPlayer — mid-game removal (3-4p)', () => {
+  const baseFour = (): GameState => ({
+    deck: [
+      { id: 'A♦', rank: 'A', suit: '♦' },
+      { id: '3♣', rank: '3', suit: '♣' },
+    ],
+    discardPile: [{ id: '7♥', rank: '7', suit: '♥' }],
+    players: [
+      [{ id: '5♥', rank: '5', suit: '♥' }, { id: '8♣', rank: '8', suit: '♣' }],
+      [{ id: '6♣', rank: '6', suit: '♣' }],
+      [{ id: '9♦', rank: '9', suit: '♦' }],
+      [{ id: 'K♠', rank: 'K', suit: '♠' }],
+    ],
+    currentPlayer: 0,
+    direction: 1,
+    message: '',
+    lastCardCalled: [false, false, false, false],
+    drawPressure: 0,
+    hasPlayed: [true, true, true, true],
+    seatStatus: ['active', 'active', 'active', 'active'],
+    finishedOrder: [],
+    eliminatedOrder: [],
+  });
+
+  it("returns the leaver's hand to the deck and empties their hand", () => {
+    const s = baseFour();
+    const deckBefore = s.deck.length;
+    const handSize = s.players[0].length;
+    const r = dropPlayer(s, 0);
+    expect(r.players[0]).toEqual([]);
+    expect(r.deck.length).toBe(deckBefore + handSize);
+    expect(r.seatStatus).toEqual(['eliminated', 'active', 'active', 'active']);
+    expect(r.eliminatedOrder).toEqual([0]);
+  });
+
+  it('advances the turn to the next active seat when the current player drops', () => {
+    const s = baseFour();
+    s.currentPlayer = 0;
+    expect(dropPlayer(s, 0).currentPlayer).toBe(1);
+  });
+
+  it('clears draw pressure aimed at a dropping current player', () => {
+    const s = baseFour();
+    s.currentPlayer = 0;
+    s.drawPressure = 5;
+    expect(dropPlayer(s, 0).drawPressure).toBe(0);
+  });
+
+  it('leaves the turn and pressure alone when a non-current seat drops', () => {
+    const s = baseFour();
+    s.currentPlayer = 0;
+    s.drawPressure = 4;
+    const r = dropPlayer(s, 2);
+    expect(r.currentPlayer).toBe(0);
+    expect(r.drawPressure).toBe(4);
+  });
+
+  it('ignores a seat that already finished or was eliminated', () => {
+    const s = baseFour();
+    s.seatStatus = ['finished', 'active', 'active', 'active'];
+    expect(dropPlayer(s, 0)).toBe(s);
+  });
+
+  it('ranks a dropped player below the seats still in the game (AE4)', () => {
+    let s = baseFour();
+    // Seat 2 finishes first.
+    s.players[2] = [];
+    s.lastCardCalled[2] = true;
+    s = resolveEndgame(s, 'ranking').state;
+    // Seat 0 drops while seats 1 and 3 remain active.
+    s = dropPlayer(s, 0);
+    const r = resolveEndgame(s, 'ranking');
+    expect(r.over).toBe(false);
+    expect(r.state.finishedOrder).toEqual([2]);
+    expect(r.state.eliminatedOrder).toEqual([0]);
+  });
+
+  it('resolves interleaved drop+finish standings deterministically (KTD2)', () => {
+    let s = baseFour();
+
+    // t1: seat 0 drops (seats 1,2,3 still active).
+    s = dropPlayer(s, 0);
+    s = resolveEndgame(s, 'ranking').state;
+
+    // t2: seat 1 finishes.
+    s.players[1] = [];
+    s.lastCardCalled[1] = true;
+    s = resolveEndgame(s, 'ranking').state;
+
+    // t3: seat 2 drops, leaving seat 3 the lone survivor.
+    s = dropPlayer(s, 2);
+    const r = resolveEndgame(s, 'ranking');
+
+    expect(r.over).toBe(true);
+    expect(r.winnerSeat).toBe(1);
+    // Finisher, then survivor, then drops in drop order (later drop ranks lower).
+    expect(r.standings).toEqual([1, 3, 0, 2]);
   });
 });
