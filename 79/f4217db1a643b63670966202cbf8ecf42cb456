@@ -1,0 +1,46 @@
+networking/index.ts
+  s_38664f39dcb408::t_a3206db9f38407 3-7,9,14
+server/src/roomManager.ts
+  s_38664f39dcb408::t_91d914b87b6842 10
+  s_38664f39dcb408::t_4c36bd02fe106f 124,128,134,454-462
+server/src/roomErrors.ts
+  s_38664f39dcb408::t_f3941111c94c3d 1-39
+server/src/validation/validatedHandler.test.ts
+  s_38664f39dcb408::t_c930cdb0d0af6b 1-50
+.github/copilot-instructions.md
+  s_38664f39dcb408::t_ce6fd58f231dae 37
+README.md
+  s_38664f39dcb408::t_44c311deaa1bb4 40,306
+networking/README.md
+  s_38664f39dcb408::t_0c51f17213f304 3,7
+server/src/abuseControls.test.ts
+  s_38664f39dcb408::t_80794079250bcf 28
+server/src/gameHandler.test.ts
+  s_38664f39dcb408::t_47a2558470f5a5 12
+server/src/health.test.ts
+  s_38664f39dcb408::t_9a9bc5013ecad4 31
+server/src/reconnectResume.test.ts
+  s_38664f39dcb408::t_49f31fb773a657 36
+server/src/roomManager.test.ts
+  s_38664f39dcb408::t_a5f78b82da12d1 13
+server/src/socketValidation.test.ts
+  s_38664f39dcb408::t_fe9ab1ce1919f0 38
+server/src/validation/validatedHandler.ts
+  s_38664f39dcb408::t_5cc637b072490a 29-33,67-71,74-75,77-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "79f4217db1a643b63670966202cbf8ecf42cb456",
+  "prompts": {},
+  "sessions": {
+    "s_38664f39dcb408": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42312b14-cbb7-47f4-862a-bc752ffb6c21",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
