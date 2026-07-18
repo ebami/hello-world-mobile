@@ -1,0 +1,28 @@
+screens/MultiplayerGameScreen.tsx
+  s_6b27060451b9fb::t_1f6a12c3181886 11
+  s_6b27060451b9fb::t_fa9288b2664788 90-95,99,134-154,167,169-170,172-175,278-282,305-312,408,536-545
+__tests__/screens/MultiplayerGameScreen.test.tsx
+  s_6b27060451b9fb::t_8153eff7c30c78 183,203,222,350-409
+components/GameOverOverlay.tsx
+  s_6b27060451b9fb::t_5ffe1c4212ba77 43-50,161,271-286,360-372
+networking/socketTransport.ts
+  s_6b27060451b9fb::t_faad6dfa5ee607 171-176
+networking/types.ts
+  s_6b27060451b9fb::t_d4e33d9d5574bb 45,62-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "0f804543cf93b52d83c83ff0127008189efcf9fc",
+  "prompts": {},
+  "sessions": {
+    "s_6b27060451b9fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a14fdb46-18f9-4f65-bb0a-a8f31d0b7003",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
