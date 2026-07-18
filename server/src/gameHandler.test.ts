@@ -870,6 +870,20 @@ describe('GameHandler - lifecycle, seat mapping, and forfeits (MFP-05)', () => {
     expect(emits.some((e) => e.event === 'game_state_update')).toBe(true);
   });
 
+  it('clears draw pressure when it skips a disconnected pressured player (R9)', () => {
+    const roomId = seedActiveN(3, 1); // Bob's turn
+    const base = roomManager.getGameState(roomId)!;
+    roomManager.setGameState(roomId, { ...base, drawPressure: 2 });
+    roomManager.setPlayerConnected(roomId, 'p2', false); // Bob (facing the pressure) disconnects
+    const { io } = makeIo();
+
+    advancePastDisconnected(io, roomId);
+
+    const after = roomManager.getGameState(roomId)!;
+    expect(after.currentPlayer).toBe(2); // skipped Bob → Carol
+    expect(after.drawPressure).toBe(0); // pressure not passed to Carol
+  });
+
   it('emits standings when a Ranking game ends by drops (U7)', () => {
     const room = roomManager.createRoom('h', 'Alice', 's1', 3, 'ranking');
     const roomId = room.roomId;

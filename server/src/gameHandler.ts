@@ -215,9 +215,10 @@ function skipDisconnectedSeats(roomId: string, gameState: GameState): GameState 
       break;
     }
   }
-  return current === gameState.currentPlayer
-    ? gameState
-    : { ...gameState, currentPlayer: current };
+  if (current === gameState.currentPlayer) return gameState;
+  // The skipped seat was the one facing any draw pressure; clear it rather than
+  // pass the absent player's penalty to the next active player (mirrors dropPlayer).
+  return { ...gameState, currentPlayer: current, drawPressure: 0 };
 }
 
 /**
@@ -537,7 +538,7 @@ export function handleGameAction(
     const reason: GameOverReason =
       endgameMode === 'ranking' ? 'last_standing' : winnerId ? 'win' : 'draw';
     const standings = buildStandings(roomId, gameState, endgame.standings);
-    recordMetric('game_completed', { reason: winnerId ? 'win' : 'draw' });
+    recordMetric('game_completed', { reason });
     announceGameOver(io, roomId, winnerId, message, reason, standings);
   }
 }

@@ -151,6 +151,13 @@ function ConfettiDecoration() {
   );
 }
 
+/** English ordinal for a 1-based place (1 → "1st", 2 → "2nd", …). */
+function ordinal(n: number): string {
+  const suffixes = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n}${suffixes[(v - 20) % 10] ?? suffixes[v] ?? suffixes[0]}`;
+}
+
 export default function GameOverOverlay({
   visible,
   winner,
@@ -164,8 +171,13 @@ export default function GameOverOverlay({
   const scaleProgress = useSharedValue(0.8);
   const titleBounce = useSharedValue(1);
 
-  const isWin = winner === 0;
-  const isDraw = winner === null;
+  // In a 3-4 player game the outcome is a placement, not a binary win/lose:
+  // derive it from the local player's standing rather than the 2-player winner
+  // flag, so a 2nd-of-4 finish reads as "2nd place", not "Defeat".
+  const myStanding = standings?.find((s) => s.isYou);
+  const rankedGame = !!standings && standings.length > 1 && !!myStanding;
+  const isWin = rankedGame ? myStanding!.place === 1 : winner === 0;
+  const isDraw = rankedGame ? false : winner === null;
 
   useEffect(() => {
     if (visible) {
@@ -231,12 +243,20 @@ export default function GameOverOverlay({
   };
 
   const getTitle = () => {
+    if (rankedGame && myStanding) {
+      return myStanding.place === 1 ? '🎉 Victory!' : `🏁 ${ordinal(myStanding.place)} place`;
+    }
     if (isWin) return '🎉 Victory!';
     if (isDraw) return '🤝 Draw!';
     return '😔 Defeat';
   };
-  
+
   const getSubtitle = () => {
+    if (rankedGame && myStanding) {
+      return myStanding.place === 1
+        ? 'You won the match!'
+        : `You finished ${ordinal(myStanding.place)} of ${standings!.length}.`;
+    }
     if (isWin) return forfeit ? 'Your opponent left — you win by forfeit!' : 'Congratulations! You won!';
     if (isDraw) return "It's a tie game!";
     return 'Better luck next time!';

@@ -380,6 +380,9 @@ describe('MultiplayerGameScreen', () => {
       ]);
 
       await waitFor(() => {
+        // The local player placed 2nd — the title reflects the placement, not
+        // a binary "Defeat".
+        expect(getByText('🏁 2nd place')).toBeTruthy();
         expect(getByText('1. Bob')).toBeTruthy();
         expect(getByText('2. Alice (You)')).toBeTruthy();
         expect(getByText('4. Dave — left')).toBeTruthy();
