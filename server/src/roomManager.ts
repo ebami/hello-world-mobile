@@ -377,37 +377,6 @@ class RoomManager {
     return true;
   }
 
-  /**
-   * Forfeit an active player (explicit leave or grace expiry). In the
-   * two-player MVP this completes the game and awards the opponent the win.
-   * Returns the winner's opaque id, or `null` if the room is not ACTIVE, the
-   * player is not seated, or the game was already completed (so callers emit
-   * `game_over` at most once). The seat order is never mutated.
-   */
-  forfeitActivePlayer(roomId: string, playerId: string): { winnerId: string } | null {
-    const room = this.rooms.get(roomId);
-    if (!room || room.phase !== 'ACTIVE') {
-      return null;
-    }
-    if (!room.seatOrder.includes(playerId)) {
-      return null;
-    }
-    const winnerId = room.seatOrder.find(id => id !== playerId) ?? null;
-
-    // Mark the forfeiting player disconnected for presentation; the seat order
-    // is left intact.
-    const leaver = room.info.players.find(p => p.playerId === playerId);
-    if (leaver) {
-      leaver.connected = false;
-    }
-
-    room.phase = 'COMPLETED';
-    room.info.phase = 'COMPLETED';
-    room.lastActivityAt = Date.now();
-
-    return winnerId ? { winnerId } : null;
-  }
-
   getAllSocketIds(roomId: string): string[] {
     const room = this.rooms.get(roomId);
     if (!room) return [];

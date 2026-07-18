@@ -18,6 +18,7 @@ import {
   handleGameAction,
   startGame,
   forfeitAndComplete,
+  advancePastDisconnected,
   buildResumeSnapshot,
 } from './gameHandler';
 import { guard, translateRoomError } from './validation/validatedHandler';
@@ -337,6 +338,10 @@ function registerHandlers(io: TypedServer, socket: TypedSocket, config: ServerCo
       if (room) {
         io.to(roomId).emit('room_updated', room);
       }
+
+      // If it was this player's turn, skip past them so the table isn't blocked
+      // for the whole grace window (R9); they stay resumable until it expires.
+      advancePastDisconnected(io, roomId);
 
       armGraceTimer(roomId, playerId, DISCONNECT_GRACE_MS, () => {
         const player = roomManager.getPlayer(roomId, playerId);

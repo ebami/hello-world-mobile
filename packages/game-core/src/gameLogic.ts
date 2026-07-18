@@ -478,32 +478,45 @@ export function resolveEndgame(state: GameState, mode: EndgameMode): EndgameResu
 
   const newState: GameState = { ...state, seatStatus, finishedOrder, eliminatedOrder };
 
-  if (mode === "first_out") {
-    if (finishedOrder.length > 0) {
-      const winnerSeat = finishedOrder[0];
-      return { state: newState, over: true, winnerSeat, standings: [winnerSeat] };
-    }
-    // An empty hand without a valid declaration ends the game with no winner.
-    const stalemate = state.players.some(
-      (hand, i) => hand.length === 0 && !state.lastCardCalled[i],
-    );
-    return { state: newState, over: stalemate, winnerSeat: null, standings: [] };
+  // First-out: the first player to empty their hand wins immediately.
+  if (mode === "first_out" && finishedOrder.length > 0) {
+    const winnerSeat = finishedOrder[0];
+    return { state: newState, over: true, winnerSeat, standings: [winnerSeat] };
   }
 
-  // Ranking: continue until at most one active seat remains.
+  // Universal end condition: the game is over once at most one seat is still
+  // active (the rest finished or were dropped). This ends a game that drains to
+  // a single last player standing, in either mode — including a 2-player forfeit.
   const activeSeats: number[] = [];
   for (let i = 0; i < total; i++) {
     if (seatStatus[i] === "active") activeSeats.push(i);
   }
-  if (activeSeats.length > 1) {
-    return { state: newState, over: false, winnerSeat: null, standings: [] };
+  if (activeSeats.length <= 1) {
+    const survivor = activeSeats.length === 1 ? activeSeats[0] : null;
+    const standings = [...finishedOrder];
+    if (survivor !== null) standings.push(survivor);
+    standings.push(...eliminatedOrder);
+    // Ranking: the first finisher is the winner. First-out (no finisher reached
+    // here): the lone survivor wins by last-player-standing.
+    const winnerSeat =
+      mode === "ranking" && finishedOrder.length > 0 ? finishedOrder[0] : survivor;
+    return { state: newState, over: true, winnerSeat, standings };
   }
-  const survivor = activeSeats.length === 1 ? activeSeats[0] : null;
-  const standings = [...finishedOrder];
-  if (survivor !== null) standings.push(survivor);
-  standings.push(...eliminatedOrder);
-  const winnerSeat = finishedOrder.length > 0 ? finishedOrder[0] : survivor;
-  return { state: newState, over: true, winnerSeat, standings };
+
+  // First-out only: an *active* seat with an empty hand but no valid declaration
+  // is a stalemate. Eliminated seats also have empty hands (their cards were
+  // reshuffled on drop), so they must be excluded from this check.
+  if (mode === "first_out") {
+    const stalemate = state.players.some(
+      (hand, i) =>
+        seatStatus[i] === "active" && hand.length === 0 && !state.lastCardCalled[i],
+    );
+    if (stalemate) {
+      return { state: newState, over: true, winnerSeat: null, standings: [] };
+    }
+  }
+
+  return { state: newState, over: false, winnerSeat: null, standings: [] };
 }
 
 /**

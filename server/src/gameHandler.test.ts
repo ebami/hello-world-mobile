@@ -3,7 +3,7 @@
  */
 
 import { roomManager } from './roomManager';
-import { handleGameAction, startGame, forfeitAndComplete } from './gameHandler';
+import { handleGameAction, startGame, forfeitAndComplete, advancePastDisconnected } from './gameHandler';
 import { playCardsCommandSchema } from './validation/schemas';
 import type { Card, GameState, TypedServer, TypedSocket } from './types';
 
@@ -799,6 +799,75 @@ describe('GameHandler - lifecycle, seat mapping, and forfeits (MFP-05)', () => {
     expect(overs[0].args[0]).toBe('p2');
     expect(overs[0].args[1]).toBe('Bob wins by forfeit!');
     expect(overs[0].args[2]).toBe('forfeit');
+  });
+
+  const NINE_D: Card = { id: '9♦', suit: '♦', rank: '9' };
+  const FOUR_C: Card = { id: '4♣', suit: '♣', rank: '4' };
+
+  function seedActiveN(count: 3 | 4, currentPlayer = 0) {
+    const ids = ['h', 'p2', 'p3', 'p4'].slice(0, count);
+    const names = ['Alice', 'Bob', 'Carol', 'Dave'].slice(0, count);
+    const room = roomManager.createRoom('h', 'Alice', 's1', count);
+    const roomId = room.roomId;
+    for (let i = 1; i < count; i += 1) {
+      roomManager.joinRoom(roomId, ids[i], names[i], `s${i + 1}`);
+    }
+    const hands: Card[][] = [[KH], [QD], [NINE_D], [FOUR_C]].slice(0, count);
+    roomManager.setGameState(
+      roomId,
+      createMockGameState({
+        players: hands,
+        currentPlayer,
+        lastCardCalled: new Array(count).fill(false),
+        hasPlayed: new Array(count).fill(true),
+        seatStatus: new Array(count).fill('active'),
+        finishedOrder: [],
+        eliminatedOrder: [],
+      }),
+    );
+    return roomId;
+  }
+
+  it('continues the game when one of four players drops (no game_over)', () => {
+    const roomId = seedActiveN(4);
+    const { io, emits } = makeIo();
+
+    forfeitAndComplete(io, roomId, 'p3'); // Carol drops
+
+    expect(emits.filter((e) => e.event === 'game_over')).toHaveLength(0);
+    expect(roomManager.getPhase(roomId)).toBe('ACTIVE');
+    const state = roomManager.getGameState(roomId)!;
+    expect(state.seatStatus).toEqual(['active', 'active', 'eliminated', 'active']);
+    expect(state.eliminatedOrder).toEqual([2]);
+  });
+
+  it('completes with a last-standing winner when a drop leaves one active player (AE5)', () => {
+    const roomId = seedActiveN(3);
+    const { io, emits } = makeIo();
+
+    forfeitAndComplete(io, roomId, 'p2'); // Bob drops → 2 active, continues
+    expect(emits.filter((e) => e.event === 'game_over')).toHaveLength(0);
+    expect(roomManager.getPhase(roomId)).toBe('ACTIVE');
+
+    forfeitAndComplete(io, roomId, 'p3'); // Carol drops → only Alice active
+    const overs = emits.filter((e) => e.event === 'game_over');
+    expect(overs).toHaveLength(1);
+    expect(overs[0].args[0]).toBe('h'); // Alice, last standing
+    expect(overs[0].args[2]).toBe('forfeit');
+    expect(roomManager.getPhase(roomId)).toBe('COMPLETED');
+  });
+
+  it('skips a disconnected player on their turn so the table is not blocked (R9)', () => {
+    const roomId = seedActiveN(3, 1); // Bob's turn
+    roomManager.setPlayerConnected(roomId, 'p2', false); // Bob disconnects
+    const { io, emits } = makeIo();
+
+    advancePastDisconnected(io, roomId);
+
+    const state = roomManager.getGameState(roomId)!;
+    expect(state.currentPlayer).toBe(2); // skipped Bob → Carol
+    expect(roomManager.getPhase(roomId)).toBe('ACTIVE'); // still resumable, not dropped
+    expect(emits.some((e) => e.event === 'game_state_update')).toBe(true);
   });
 });
 

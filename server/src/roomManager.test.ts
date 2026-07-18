@@ -369,23 +369,6 @@ describe('RoomManager', () => {
       expect(roomManager.completeGame(roomId)).toBe(false);
     });
 
-    it('forfeits an active player and awards the opponent (two-player MVP)', () => {
-      const roomId = activeRoom();
-      expect(roomManager.forfeitActivePlayer(roomId, 'id-bob')).toEqual({
-        winnerId: 'id-alice',
-      });
-      expect(roomManager.getPhase(roomId)).toBe('COMPLETED');
-      // The forfeiting player is marked disconnected; the winner stays connected.
-      expect(roomManager.getPlayer(roomId, 'id-bob')!.connected).toBe(false);
-      // A second forfeit is a no-op (already completed) so game_over stays single.
-      expect(roomManager.forfeitActivePlayer(roomId, 'id-alice')).toBeNull();
-    });
-
-    it('does not forfeit outside an active game', () => {
-      const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1'); // LOBBY
-      expect(roomManager.forfeitActivePlayer(room.roomId, 'id-alice')).toBeNull();
-    });
-
     it('lets a lobby host leave and transfers host ownership by id', () => {
       const room = roomManager.createRoom('id-alice', 'Alice', 'socket-1');
       roomManager.joinRoom(room.roomId, 'id-bob', 'Bob', 'socket-2');

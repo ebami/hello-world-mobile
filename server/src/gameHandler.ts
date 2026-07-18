@@ -18,6 +18,7 @@ import {
   applyCardEffect,
   resolveEndgame,
   nextActiveIndex,
+  dropPlayer,
   declareLastCard,
 } from '@hello-world/game-core';
 import type { TypedServer, TypedSocket } from './types';
@@ -81,27 +82,59 @@ function announceGameOver(
 }
 
 /**
- * Complete an active game as a forfeit by `leaverId` (explicit leave or grace
- * expiry) and emit `game_over` exactly once. No-op if the room is not active or
- * the game was already completed. Used by the socket server's leave/disconnect
- * routing (MFP-05).
+ * Remove a player from an active game (explicit leave or grace expiry). The
+ * leaver is dropped from the game state — their hand is reshuffled into the deck
+ * and their seat marked eliminated — after which the game either continues (2+
+ * active players remain) or completes when only one player is left standing,
+ * emitting a single `game_over` (MFP-05). No-op if the room is not active or the
+ * player is not seated. The frozen seat order is never mutated.
  */
 export function forfeitAndComplete(
   io: TypedServer,
   roomId: string,
   leaverId: string,
 ): void {
-  const result = roomManager.forfeitActivePlayer(roomId, leaverId);
-  if (!result) {
-    return; // not active, not seated, or already completed
+  const room = roomManager.getRoom(roomId);
+  if (!room || roomManager.getPhase(roomId) !== 'ACTIVE') {
+    return;
   }
-  const winner = roomManager.getPlayer(roomId, result.winnerId);
-  const message = winner
-    ? `${winner.displayName} wins by forfeit!`
-    : 'Game over.';
+  const seat = roomManager.seatIndex(roomId, leaverId);
+  let gameState = roomManager.getGameState(roomId);
+  if (seat === -1 || !gameState) {
+    return;
+  }
+
+  // Mark the leaver disconnected for presentation; the seat order stays intact.
+  roomManager.setPlayerConnected(roomId, leaverId, false);
+
+  // Drop them from the game, then resolve whether the game is now over.
+  gameState = dropPlayer(gameState, seat);
+  const mode = room.endgameMode ?? 'first_out';
+  const endgame = resolveEndgame(gameState, mode);
+  gameState = endgame.state;
+  roomManager.setGameState(roomId, gameState);
+  roomManager.updateHandCounts(roomId, gameState);
+  roomManager.bumpStateVersion(roomId);
   recordMetric('forfeit');
-  recordMetric('game_completed', { reason: 'forfeit' });
-  announceGameOver(io, roomId, result.winnerId, message, 'forfeit');
+
+  // Show the drop to everyone still in the room.
+  broadcastGameState(io, roomId, gameState);
+
+  if (endgame.over && roomManager.completeGame(roomId)) {
+    const seatOrder = roomManager.getSeatOrder(roomId);
+    const winnerId =
+      endgame.winnerSeat !== null ? seatOrder[endgame.winnerSeat] ?? null : null;
+    const winner = winnerId ? roomManager.getPlayer(roomId, winnerId) : null;
+    const message = winner ? `${winner.displayName} wins by forfeit!` : 'Game over.';
+    recordMetric('game_completed', { reason: 'forfeit' });
+    announceGameOver(io, roomId, winnerId, message, 'forfeit');
+  } else {
+    // Game continues with the remaining players — refresh the roster view.
+    const updatedRoom = roomManager.getRoom(roomId);
+    if (updatedRoom) {
+      io.to(roomId).emit('room_updated', updatedRoom);
+    }
+  }
 }
 
 function toHandPayload(state: GameState, roomId: string, playerId: string, playerIndex: number): PrivateHandPayload {
@@ -110,6 +143,65 @@ function toHandPayload(state: GameState, roomId: string, playerId: string, playe
     playerId,
     hand: state.players[playerIndex],
   };
+}
+
+/**
+ * Broadcast the authoritative public view to the whole room and each player's
+ * own private hand to their current socket (via the frozen seat mapping).
+ */
+function broadcastGameState(io: TypedServer, roomId: string, gameState: GameState): void {
+  io.to(roomId).emit('game_state_update', toPublicView(gameState, roomId));
+  const seatOrder = roomManager.getSeatOrder(roomId);
+  seatOrder.forEach((seatPlayerId, seat) => {
+    const socketId = roomManager.getSocketId(roomId, seatPlayerId);
+    if (socketId) {
+      io.to(socketId).emit('hand_update', toHandPayload(gameState, roomId, seatPlayerId, seat));
+    }
+  });
+}
+
+/**
+ * Advance the current turn past any disconnected-but-active seat so the table is
+ * not blocked for the full grace window when it becomes an away player's turn
+ * (R9). Skipped seats are not removed — they stay resumable until grace expiry
+ * drops them. Pure turn skip; no auto-draw.
+ */
+function skipDisconnectedSeats(roomId: string, gameState: GameState): GameState {
+  const seatOrder = roomManager.getSeatOrder(roomId);
+  const total = seatOrder.length;
+  if (total === 0) return gameState;
+  let current = gameState.currentPlayer;
+  let steps = 0;
+  while (steps < total) {
+    const pid = seatOrder[current];
+    const player = pid ? roomManager.getPlayer(roomId, pid) : null;
+    const isActive = (gameState.seatStatus?.[current] ?? 'active') === 'active';
+    if (isActive && player && !player.connected) {
+      current = nextActiveIndex(current, gameState.direction, total, gameState.seatStatus);
+      steps += 1;
+    } else {
+      break;
+    }
+  }
+  return current === gameState.currentPlayer
+    ? gameState
+    : { ...gameState, currentPlayer: current };
+}
+
+/**
+ * If it is now a disconnected player's turn in an active game, skip past them and
+ * broadcast the updated state (R9). Called when a player disconnects.
+ */
+export function advancePastDisconnected(io: TypedServer, roomId: string): void {
+  if (roomManager.getPhase(roomId) !== 'ACTIVE') return;
+  const gameState = roomManager.getGameState(roomId);
+  if (!gameState) return;
+  const skipped = skipDisconnectedSeats(roomId, gameState);
+  if (skipped !== gameState) {
+    roomManager.setGameState(roomId, skipped);
+    roomManager.bumpStateVersion(roomId);
+    broadcastGameState(io, roomId, skipped);
+  }
 }
 
 // ========== Authorization ==========
@@ -379,6 +471,12 @@ export function handleGameAction(
   const endgame = resolveEndgame(gameState, endgameMode);
   gameState = endgame.state;
 
+  // If the turn landed on a disconnected-but-active player, skip past them so the
+  // table isn't blocked until their grace window expires (R9).
+  if (!endgame.over) {
+    gameState = skipDisconnectedSeats(roomId, gameState);
+  }
+
   // Save updated state and advance the monotonic version exactly once for this
   // accepted command; record the command id so a retry is deduplicated (MFP-04).
   roomManager.setGameState(roomId, gameState);
@@ -388,21 +486,9 @@ export function handleGameAction(
     roomManager.recordCommand(roomId, auth.playerId, meta.commandId);
   }
 
-  // Broadcast updates
-  const publicView = toPublicView(gameState, roomId);
-  io.to(roomId).emit('game_state_update', publicView);
-
-  // Send private hand updates via the frozen seat mapping: seat `i`'s hand goes
-  // to `seatOrder[i]`'s current socket. This guarantees each player receives
-  // their own authoritative hand regardless of presentation-array order.
+  // Broadcast the public view + each player's private hand via the frozen seat map.
+  broadcastGameState(io, roomId, gameState);
   const seatOrder = roomManager.getSeatOrder(roomId);
-  seatOrder.forEach((seatPlayerId, seat) => {
-    const socketId = roomManager.getSocketId(roomId, seatPlayerId);
-    if (socketId) {
-      const handPayload = toHandPayload(gameState!, roomId, seatPlayerId, seat);
-      io.to(socketId).emit('hand_update', handPayload);
-    }
-  });
 
   // Gate the announcement on the single ACTIVE → COMPLETED transition so
   // `game_over` is emitted exactly once (MFP-05). Standings enrichment lands in
