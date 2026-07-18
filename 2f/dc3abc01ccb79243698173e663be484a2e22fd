@@ -1,0 +1,36 @@
+server/src/gameHandler.ts
+  s_6b27060451b9fb::t_19a964acb3f02f 85-90,97-99,101-105,137,185,204,478
+  s_6b27060451b9fb::t_65a255e8cc1cf3 106-113
+  s_6b27060451b9fb::t_54feb0accac503 21
+  s_6b27060451b9fb::t_041e6e6ec5444c 114-116
+  s_6b27060451b9fb::t_3e549892171fdf 134-136
+  s_6b27060451b9fb::t_4cd2f0e7bf81ff 182-184
+  s_6b27060451b9fb::t_6a08436e1e1f93 186-188,201-203
+  s_6b27060451b9fb::t_cea72739418f07 205-206
+  s_6b27060451b9fb::t_1580325910cd8f 475-477
+  s_6b27060451b9fb::t_3595ea40982167 479
+  s_6b27060451b9fb::t_5085f7d10beb2e 117,119-133,148-181,189-200,474,489-490
+server/src/gameHandler.test.ts
+  s_6b27060451b9fb::t_efb9942909e011 6
+  s_6b27060451b9fb::t_f2b7463e0faa41 803-871
+packages/game-core/src/gameLogic.ts
+  s_6b27060451b9fb::t_61c19fd22dd90c 481-484,487-489,494-503,505-519
+server/src/socketServer.ts
+  s_6b27060451b9fb::t_ba26b8f6905223 21,342-345
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "2fdc3abc01ccb79243698173e663be484a2e22fd",
+  "prompts": {},
+  "sessions": {
+    "s_6b27060451b9fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a14fdb46-18f9-4f65-bb0a-a8f31d0b7003",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
