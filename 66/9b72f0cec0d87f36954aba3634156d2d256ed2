@@ -1,0 +1,33 @@
+screens/MultiplayerGameScreen.tsx
+  s_6b27060451b9fb::t_4cb2390656d07a 11,16-45
+  s_755438b5ce44c9::t_5be9b6603cc6a0 46
+  s_6b27060451b9fb::t_f65bc2c5cd77ff 47-51
+  s_6b27060451b9fb::t_f101f226cc5ed6 52-60
+  s_6b27060451b9fb::t_ba69fb685b1807 244-248,287-289,291-293,295,298-310,409-454
+__tests__/screens/MultiplayerGameScreen.test.tsx
+  s_6b27060451b9fb::t_805a103557042d 306-349
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "669b72f0cec0d87f36954aba3634156d2d256ed2",
+  "prompts": {},
+  "sessions": {
+    "s_6b27060451b9fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a14fdb46-18f9-4f65-bb0a-a8f31d0b7003",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    },
+    "s_755438b5ce44c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5c6eabb1-c6a5-480d-b76e-169d127a0389",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Emmanuel Bamigbade <emmanuel.bamigbade@lexisnexis.com>"
+    }
+  }
+}
