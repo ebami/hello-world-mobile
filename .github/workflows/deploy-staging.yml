@@ -24,8 +24,8 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -40,7 +40,7 @@ jobs:
       # Mandatory release gate (MFP-12): critical container CVEs block the
       # deploy. No continue-on-error. This is the exact image that gets promoted.
       - name: Trivy image scan (fail on CRITICAL)
-        uses: aquasecurity/trivy-action@0.28.0 # TODO: pin by commit SHA
+        uses: aquasecurity/trivy-action@v0.36.0 # TODO: pin by commit SHA
         with:
           scan-type: image
           image-ref: ${{ vars.IMAGE_REPO }}:${{ github.sha }}
@@ -49,7 +49,7 @@ jobs:
           exit-code: "1"
 
       - name: Generate SBOM (CycloneDX)
-        uses: aquasecurity/trivy-action@0.28.0 # TODO: pin by commit SHA
+        uses: aquasecurity/trivy-action@v0.36.0 # TODO: pin by commit SHA
         with:
           scan-type: image
           image-ref: ${{ vars.IMAGE_REPO }}:${{ github.sha }}
@@ -57,7 +57,7 @@ jobs:
           output: sbom.cdx.json
 
       - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ github.sha }}
           path: sbom.cdx.json
