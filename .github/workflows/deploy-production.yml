@@ -24,8 +24,8 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -34,7 +34,7 @@ jobs:
       # Mandatory release gate (MFP-12): re-scan the EXACT promoted digest before
       # it reaches production. Critical CVEs block promotion. No continue-on-error.
       - name: Trivy scan promoted digest (fail on CRITICAL)
-        uses: aquasecurity/trivy-action@0.28.0 # TODO: pin by commit SHA
+        uses: aquasecurity/trivy-action@v0.36.0 # TODO: pin by commit SHA
         with:
           scan-type: image
           image-ref: ${{ vars.IMAGE_REPO }}@${{ inputs.image_digest }}
